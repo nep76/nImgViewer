@@ -12,17 +12,25 @@
 	<script type="module" src="./main.js"></script>
 	
 	<header>
+		<h1>nImgViewer</h1>
 		<button id="add">フォルダを追加</button>
-		<button id="reset">一覧をリセット</button>
+		<button id="reset">クリア</button>
 		<span id="status">0 枚</span>
 	</header>
 
+	<main>
 	<div id="gallery"></div>
 	<div id="empty">「フォルダを追加」から画像フォルダを選択</div>
+	</main>
 
 	<dialog id="rebuild-modal">
-		<p>ディレクトリアクセス権限が失われているため表示できません。</p>
+		<p>ディレクトリアクセス権が失われているため表示できません。</p>
 		<button id="rebuild">再構築</button>
 	</dialog>
+
+	<footer>
+		<p>© 2026 nep · github: <a href="https://github.com/nep76/nImgViewer">nep76/nImgViewer</a></p>
+	</footer>
+
 </body>
 </html>
