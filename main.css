@@ -1,79 +1,86 @@
 * {
-  box-sizing: border-box;
+  	box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  background: #222;
-  color: #ddd;
-  font-family: sans-serif;
+ 	margin: 0;
+ 	background: #222;
+ 	color: #ddd;
+ 	font-family: sans-serif;
 }
 
 header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: #333;
+  	position: sticky;
+  	top: 0;
+  	z-index: 10;
+  	display: flex;
+  	align-items: center;
+  	gap: 12px;
+  	padding: 8px 12px;
+  	background: #333;
 }
 
 button {
-  height: 42px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 6px;
-  background: #555;
-  color: #aaa;
-  font: inherit;
-  font-weight: bold;
-  cursor: pointer;
+  	height: 42px;
+  	padding: 0 20px;
+  	border: 0;
+  	border-radius: 6px;
+  	background: #555;
+  	color: #aaa;
+  	font: inherit;
+  	font-weight: bold;
+  	cursor: pointer;
+  	display: inline-block;
 }
 
-button:hover {
-  background: #3f6fc4;
-  color: white;
+button:hover, button:focus {
+  	background: #3f6fc4;
+  	color: white;
+}
+
+button:focus {
+  	outline: 1px solid #3f6fc4;
+  	outline-offset: 0;
 }
 
 #status {
-  font-size: 13px;
-  color: #bbb;
+  	font-size: 13px;
+  	color: #bbb;
 }
 
 #gallery {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 2px;
+  	display: flex;
+  	flex-wrap: wrap;
+  	align-items: flex-start;
+  	gap: 2px;
+  	padding: 2px;
 }
 
 #gallery img {
-  display: block;
-  height: 220px;
-  width: auto;
-  max-width: calc(100vw - 8px);
-  object-fit: contain;
-  flex: none;
+  	display: block;
+  	height: 220px;
+  	width: auto;
+  	max-width: calc(100vw - 8px);
+  	object-fit: contain;
+  	flex: none;
 }
 
 #empty {
-  padding: 24px 12px;
-  color: #999;
-  font-size: 14px;
+  	padding: 24px 12px;
+  	color: #999;
+  	font-size: 14px;
 }
 
 dialog {
-  color: #999;
-  border: 1px solid #555;
-  background: #333;
-  border-radius: 10px;
-  scrollbar-color: #888 #333;
+  	color: #ddd;
+  	border: 1px solid #888;
+  	background: #333;
+  	border-radius: 10px;
+  	scrollbar-color: #888 #333;
+  	text-align: center;
 }
 
 dialog::backdrop {
-  background-color: rgba( 0, 0, 0, 0.6 );
-  backdrop-filter: blur( 4px );
+  	background-color: rgba( 0, 0, 0, 0.6 );
+  	backdrop-filter: blur( 4px );
 }
