@@ -67,10 +67,11 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async () => {
 } );
 
 document.getElementById( "rebuild" ).addEventListener( "click", async ( e ) => {
-	const backup_label = e.currentTarget.textContent;
+	const button = e.currentTarget;
+	const backup_label = button.textContent;
 
-	e.currentTarget.disabled = true;
-	e.currentTarget.textContent = "読み込み中...";
+	button.disabled = true;
+	button.textContent = "読み込み中...";
 
 	try{
 		for( const key of Object.keys( gDeniedDirHandle ) ){
@@ -84,8 +85,8 @@ document.getElementById( "rebuild" ).addEventListener( "click", async ( e ) => {
 
 		gDeniedDirHandle = {};
 	} finally{
-		e.currentTarget.textContent = backup_label;
-		e.currentTarget.disabled = false;
+		button.textContent = backup_label;
+		button.disabled = false;
 	}
 
 	update_status();
