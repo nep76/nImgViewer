@@ -57,13 +57,11 @@ async function rebuild_gallery()
 	for( const key of Object.keys( dirs ) ){
 		const perm = await dirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
-		  	const num = await gImageTile.addImagesByDirHandleAsync( dirs[key].dirHandle, key );
+		  	await gImageTile.addImagesByDirHandleAsync( dirs[key].dirHandle, key );
 		} else{
 		  	success = false;
 		}
 	}
-
-	document.body.appendChild( gOverlayViewer.getRootElement() );
 
 	update_status();
 
@@ -83,9 +81,10 @@ document.getElementById( "rebuild" ).addEventListener( "click", async () => {
 		const perm = await dirs[key].dirHandle.requestPermission( { mode: "read" } );
 		if( perm !== "granted" ){
 		  	alert( "Failed to requestPermission" );
-		  	success = false;
 		}
 	}
+
+	document.getElementById( "rebuild-modal" ).close();
 
 	rebuild_gallery();
 } );
