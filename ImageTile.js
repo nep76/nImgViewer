@@ -86,7 +86,7 @@ export default class ImageTile
 		}
 	}
 
-	async reCalcTiling()
+	async reCalcTilingAsync()
 	{
 		const gallery_style = getComputedStyle( this.rootElement );
     	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );

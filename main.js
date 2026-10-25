@@ -6,6 +6,8 @@ const gImgDir        = new ImageDirStore( "nImgViewer" );
 const gOverlayViewer = new OverlayViewer( "nImgViewer-overlay" );
 const gImageTile     = new ImageTile( "gallery" );
 
+let gDeniedDirHandle = {};
+
 function update_status()
 {
 	const imgs = document.querySelectorAll( `img[data-dir-id]` );
@@ -43,54 +45,56 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 });
 
 document.getElementById( "reset" ).addEventListener( "click", async () => {
-	gImageTile.clear();
-	await gImgDir.clearAsync();
-	update_status();
+	document.getElementById( "delete-modal" ).showModal();
 });
 
-async function rebuild_gallery()
-{
-	const dirs = gImgDir.getDirs();
+document.getElementById( "delete-cancel" ).addEventListener( "click", () => {
+	document.getElementById( "delete-modal" ).close();
+} );
 
-	let success = true;
+document.getElementById( "delete-ok" ).addEventListener( "click", async () => {
+	e.currentTarget.disabled = true;
 
-	for( const key of Object.keys( dirs ) ){
-		const perm = await dirs[key].dirHandle.queryPermission( { mode: "read" } );
-		if( perm === "granted" ){
-		  	await gImageTile.addImagesByDirHandleAsync( dirs[key].dirHandle, key );
-		} else{
-		  	success = false;
+	try {
+		gImageTile.clear();
+		await gImgDir.clearAsync();
+		update_status();
+	} finally{
+		e.currentTarget.disabled = true;
+	}
+
+	document.getElementById( "delete-modal" ).close();
+} );
+
+document.getElementById( "rebuild" ).addEventListener( "click", async ( e ) => {
+	const backup_label = e.currentTarget.textContent;
+
+	e.currentTarget.disabled = true;
+	e.currentTarget.textContent = "読み込み中...";
+
+	try{
+		for( const key of Object.keys( gDeniedDirHandle ) ){
+			const perm = await gDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
+			if( perm === "granted" ){
+				await gImageTile.addImagesByDirHandleAsync( gDeniedDirHandle[key].dirHandle, key );
+			} else{
+				console.log( `nImgViewer: Permission denied to read for the directory: ${gDeniedDirHandle[key].dirHandle.name }` );
+			}
 		}
+
+		gDeniedDirHandle = {};
+	} finally{
+		e.currentTarget.textContent = backup_label;
+		e.currentTarget.disabled = false;
 	}
 
 	update_status();
 
-	if( ! success ){
-	  	document.getElementById( "rebuild-modal" ).showModal();
-	} else{
-	  	document.getElementById( "rebuild-modal" ).close();
-	}
-
-	return success;
-}
-
-document.getElementById( "rebuild" ).addEventListener( "click", async () => {
-	const dirs = gImgDir.getDirs();
-	
-	for( const key of Object.keys( dirs ) ){
-		const perm = await dirs[key].dirHandle.requestPermission( { mode: "read" } );
-		if( perm !== "granted" ){
-		  	alert( "Failed to requestPermission" );
-		}
-	}
-
 	document.getElementById( "rebuild-modal" ).close();
-
-	rebuild_gallery();
 } );
 
 document.addEventListener( "DOMContentLoaded", async () => {
-	await gImgDir.loadAsync();
+	const dirs = await gImgDir.loadAsync();
 
 	gImageTile.addEventListener( "click", ( e ) => {
 		const img = e.target.closest( "img" );
@@ -99,11 +103,24 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		gOverlayViewer.setUrl( img.src );
 		gOverlayViewer.show();
 	} );
-
-	rebuild_gallery();
-
+	
 	document.body.appendChild( gOverlayViewer.getRootElement() );
 	document.querySelector( "main" ).appendChild( gImageTile.getRootElement() );
+
+	for( const key of Object.keys( dirs ) ){
+		const perm = await dirs[key].dirHandle.queryPermission( { mode: "read" } );
+		if( perm === "granted" ){
+			await gImageTile.addImagesByDirHandleAsync( dirs[key].dirHandle, key );
+		} else{
+			gDeniedDirHandle[key] = dirs[key];
+		}
+	}
+
+	update_status();
+	
+	if( Object.keys( gDeniedDirHandle ).length ){
+		document.getElementById( "rebuild-modal" ).showModal();
+	}
 
 	const observer = new ResizeObserver( ( () => {
 		let prev_width = null;
@@ -114,7 +131,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 				
 				prev_width = e.contentRect.width;
 
-				await gImageTile.reCalcTiling();
+				await gImageTile.reCalcTilingAsync();
 				break;
 			}
 		}

@@ -13,18 +13,23 @@
 	
 	<header>
 		<h1>nImgViewer</h1>
-		<button id="add">フォルダを追加</button>
-		<button id="reset">クリア</button>
+		<button id="add" title="フォルダを追加" aria-label="フォルダを追加">＋</button>
+		<button id="reset" title="追加されたフォルダを全てクリア" aria-label="追加されたフォルダを全てクリア">✕</button>
 		<span id="status">0 枚</span>
 	</header>
 
 	<main>
-		<div id="empty" hidden>「フォルダを追加」から画像フォルダを選択</div>
+		<div id="empty" hidden>「＋」から画像フォルダを選択</div>
 	</main>
 
 	<dialog id="rebuild-modal">
-		<p>ディレクトリアクセス権が失われているため表示できません。</p>
-		<button id="rebuild">再構築</button>
+		<p>以前の画像を再表示するにはアクセス許可が必要です。</p>
+		<button id="rebuild" autofocus>承認して再表示</button>
+	</dialog>
+
+	<dialog id="delete-modal">
+		<p>画像一覧とフォルダの登録を削除します。この操作は取り消せません。</p>
+		<button id="delete-ok">削除</button> <button id="delete-cancel" autofocus>キャンセル</button>
 	</dialog>
 
 	<footer>

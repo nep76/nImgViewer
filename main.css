@@ -73,7 +73,7 @@ h1:before {
 button {
   	height: 42px;
   	padding: 0 20px;
-  	border: 0;
+  	border: 2px solid transparent;
   	border-radius: 6px;
   	background: #555;
   	color: #aaa;
@@ -83,19 +83,17 @@ button {
   	display: inline-block;
 }
 
-button:hover, button:focus {
+button:hover {
   	background: #3f6fc4 !important;
   	color: white;
 }
 
 button:focus {
+	border: 2px solid  #3f6fc4;
+	background: #555 !important;
+	color: white;
   	outline: 0;
   	outline-offset: 0;
-}
-
-#status {
-  	font-size: 13px;
-  	color: #bbb;
 }
 
 #gallery img {
@@ -122,6 +120,16 @@ dialog {
 dialog::backdrop {
   	background-color: rgba( 0, 0, 0, 0.6 );
   	backdrop-filter: blur( 4px );
+}
+
+span#status {
+ 	font-size: 13px;
+  	color: #bbb;
+	font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+button#add {
+	font-size: 20px;
 }
 
 dialog#nImgViewer-overlay {
@@ -159,4 +167,10 @@ dialog#nImgViewer-overlay {
 	width: 200px;
 	vertical-align: middle;
 	cursor: pointer;
+}
+
+#nImgViewer-overlay-ctrl span#nImgViewer-overlay-zoom-num {
+	font-family: Verdana, Geneva, Tahoma, sans-serif;
+	font-size: 13px;
+	margin-left: 5px;
 }

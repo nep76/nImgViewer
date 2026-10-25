@@ -15,7 +15,8 @@ export default class OverlayViewer {
 		  	root : document.createElement( "dialog" ),
 		  	ctrl : document.createElement( "div" ),
 		  	close: document.createElement( "button" ),
-		  	zoom : document.createElement( "input" ),		
+		  	zoom : document.createElement( "input" ),
+			zoomNum: document.createElement( "span" ),		
 		 	scrl : document.createElement( "div" ),
 		  	image: document.createElement( "img" )
 		};
@@ -24,6 +25,7 @@ export default class OverlayViewer {
 		this.domTree.ctrl.id  = this.id + "-ctrl";
 		this.domTree.close.id = this.id + "-close";
 		this.domTree.zoom.id  = this.id + "-zoom";
+		this.domTree.zoomNum.id = this.id + "-zoom-num";
 		this.domTree.scrl.id  = this.id + "-scrl";
 		this.domTree.image.id = this.id + "-image";
 	  
@@ -32,6 +34,7 @@ export default class OverlayViewer {
 	  
 		this.domTree.ctrl.appendChild( this.domTree.close );
 		this.domTree.ctrl.appendChild( this.domTree.zoom );
+		this.domTree.ctrl.appendChild( this.domTree.zoomNum );
 	  
 		this.domTree.scrl.appendChild( this.domTree.image );
 	  
@@ -39,9 +42,11 @@ export default class OverlayViewer {
 	  
 		this.domTree.zoom.type   = "range";
 		this.domTree.zoom.min    = 10;
-		this.domTree.zoom.max    = 300;
+		this.domTree.zoom.max    = 1600;
 		this.domTree.zoom.value  = 100;
-	  
+
+	  	this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
+
 		this.domTree.root.style.position = "fixed";
 		this.domTree.root.style.paddingTop = 0;
 		this.domTree.root.style.paddingBottom = 0;
@@ -53,6 +58,8 @@ export default class OverlayViewer {
 		this.domTree.ctrl.style.left = "50%";
 		this.domTree.ctrl.style.transform = "translateX(-50%)";
 	  
+		this.domTree.zoomNum.style.cursor = "pointer";
+
 		this.domTree.scrl.style.display = "flex";
 		this.domTree.scrl.style.width = "100%";
 		this.domTree.scrl.style.height = "100%";
@@ -73,15 +80,23 @@ export default class OverlayViewer {
 
 			this.fit = true;
 			this.domTree.zoom.value = 100;
-			this.domTree.image.style.height = "100%";
+			this.domTree.zoomNum.textContent = this.domTree.zoom.value +"%";
+			this.#updateZoom();
 		  }
 		}, false );
+
+		this.domTree.zoomNum.addEventListener( "click", () => {
+			this.domTree.zoom.value = 100;
+			this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
+			this.#updateZoom();
+		} );
 
 		this.domTree.zoom.addEventListener( "pointerdown", () => {
 			this.#updateFocusRatio( null, null );
 		} );
 		this.domTree.zoom.addEventListener( "input", () => {
 			this.#updateZoom();
+	  		this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
 		} );
 	  
 		this.domTree.image.addEventListener( "click", ( e ) => {
