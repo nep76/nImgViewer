@@ -5,13 +5,19 @@ export default class OverlayViewer {
 		let e;
 		
 		this.id = id;
+		this.fit = true;
+		this.zoomRaf = null;
+		
+		this.focusRatioX = 0;
+		this.focuxRatioY = 0;
+
 		this.domTree = {
-		  root : document.createElement( "dialog" ),
-		  ctrl : document.createElement( "div" ),
-		  close: document.createElement( "button" ),
-		  zoom : document.createElement( "input" ),
-		  scrl : document.createElement( "div" ),
-		  image: document.createElement( "img" )
+		  	root : document.createElement( "dialog" ),
+		  	ctrl : document.createElement( "div" ),
+		  	close: document.createElement( "button" ),
+		  	zoom : document.createElement( "input" ),		
+		 	scrl : document.createElement( "div" ),
+		  	image: document.createElement( "img" )
 		};
 	  
 		this.domTree.root.id  = this.id;
@@ -39,7 +45,6 @@ export default class OverlayViewer {
 		this.domTree.root.style.position = "fixed";
 		this.domTree.root.style.paddingTop = 0;
 		this.domTree.root.style.paddingBottom = 0;
-		this.domTree.root.style.scrollbarGutter = "stable";
 		this.domTree.root.style.width = "95vw";
 		this.domTree.root.style.height = "95vh";
 	  
@@ -48,13 +53,16 @@ export default class OverlayViewer {
 		this.domTree.ctrl.style.left = "50%";
 		this.domTree.ctrl.style.transform = "translateX(-50%)";
 	  
-		this.domTree.scrl.style.overscrollBehavior = "contain";
+		this.domTree.scrl.style.display = "flex";
 		this.domTree.scrl.style.width = "100%";
 		this.domTree.scrl.style.height = "100%";
 		this.domTree.scrl.style.overflow = "auto";
+		this.domTree.scrl.style.scrollbarGutter = "stable";
+		this.domTree.scrl.style.overscrollBehavior = "contain";
 		
 		this.domTree.image.style.display = "block";
 		this.domTree.image.style.marginInline = "auto";
+		this.domTree.image.style.marginBlock = "auto";
 		this.domTree.image.style.height = "100%";
 		this.domTree.image.style.cursor = "zoom-in";
 	  
@@ -62,30 +70,56 @@ export default class OverlayViewer {
 		  if( e.target === this.domTree.root || e.target === this.domTree.scrl || e.target == this.domTree.close ){
 		    this.hide();
 		    this.setUrl( "" );
+
+			this.fit = true;
+			this.domTree.zoom.value = 100;
+			this.domTree.image.style.height = "100%";
 		  }
 		}, false );
+
+		this.domTree.zoom.addEventListener( "pointerdown", () => {
+			this.#updateFocusRatio( null, null );
+		} );
+		this.domTree.zoom.addEventListener( "input", () => {
+			this.#updateZoom();
+		} );
 	  
 		this.domTree.image.addEventListener( "click", ( e ) => {
-			if( e.currentTarget.style.height === "auto" ){
-			  	e.currentTarget.style.height = "100%";
-			  	this.domTree.image.style.cursor = "zoom-in";
+			this.fit = ( ! this.fit );
+
+			this.#updateFocusRatio( e.offsetX, e.offsetY );
+			if( ! this.fit ){
+			  	this.#updateZoom();
+			  	e.target.style.cursor = "zoom-out";
 			} else{
-				let rect = e.currentTarget.getBoundingClientRect();
-
-				const y_ratio = e.offsetY / rect.height;
-				const x_ratio  = e.offsetX / rect.width;
-
-				e.currentTarget.style.height = "auto";
-				e.currentTarget.style.cursor = "zoom-out";
-
-				requestAnimationFrame( () => {
-				  rect = this.domTree.image.getBoundingClientRect();
-				  const scrl_rect = this.domTree.scrl.getBoundingClientRect();
-
-				  this.domTree.scrl.scrollTop  = rect.height * y_ratio - scrl_rect.height / 2;
-				  this.domTree.scrl.scrollLeft = rect.width  * x_ratio - scrl_rect.width / 2;
-				} );
+				this.#updateZoom();
+				e.target.style.cursor = "zoom-in";
 			}
+		} );
+	}
+
+	#updateFocusRatio( x, y )
+	{
+		const rect = this.domTree.image.getBoundingClientRect();
+
+		this.focusRatioY = ( y !== null ? y : this.domTree.scrl.scrollTop  + Math.min( this.domTree.image.clientHeight, this.domTree.scrl.clientHeight ) / 2 ) / rect.height;
+		this.focusRatioX = ( x !== null ? x : this.domTree.scrl.scrollLeft + Math.min( this.domTree.image.clientWidth, this.domTree.scrl.clientWidth ) / 2 ) / rect.width;
+	}
+
+	#updateZoom()
+	{
+		const scale = this.domTree.zoom.valueAsNumber / 100;
+
+		this.domTree.image.style.height = this.fit ? `${100 * scale}%` : `${this.domTree.image.naturalHeight * scale}px`
+
+		if( this.zoomRaf ) cancelAnimationFrame( this.zoomRaf );
+		this.zoomRaf = requestAnimationFrame( () => {
+		  const rect = this.domTree.image.getBoundingClientRect();
+
+		  this.domTree.scrl.scrollTop  = rect.height * this.focusRatioY - this.domTree.scrl.clientHeight / 2;
+		  this.domTree.scrl.scrollLeft = rect.width  * this.focusRatioX - this.domTree.scrl.clientWidth / 2;
+
+		  this.zoomRaf = null;
 		} );
 	}
 
@@ -97,6 +131,10 @@ export default class OverlayViewer {
 	show()
 	{
 	  	this.domTree.root.showModal();
+
+		requestAnimationFrame( () => {
+			this.#updateFocusRatio( null, null );
+		} );
 	}
 
 	hide()

@@ -84,12 +84,12 @@ button {
 }
 
 button:hover, button:focus {
-  	background: #3f6fc4;
+  	background: #3f6fc4 !important;
   	color: white;
 }
 
 button:focus {
-  	outline: 1px solid #3f6fc4;
+  	outline: 0;
   	outline-offset: 0;
 }
 
@@ -112,7 +112,7 @@ button:focus {
 
 dialog {
   	color: #ddd;
-  	border: 1px solid #888;
+  	border: 1px solid  #3f6fc4;
   	background: #333;
   	border-radius: 10px;
   	scrollbar-color: #888 #333;
@@ -122,4 +122,41 @@ dialog {
 dialog::backdrop {
   	background-color: rgba( 0, 0, 0, 0.6 );
   	backdrop-filter: blur( 4px );
+}
+
+dialog#nImgViewer-overlay {
+	overflow: visible !important;
+}
+
+#nImgViewer-overlay-ctrl {
+	height: 42px;
+	background-color: rgba( 48, 48, 48, 0.85 );
+	border-radius: 21px;
+	padding-right: 20px;
+	padding-bottom: 4px;
+}
+
+#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close {
+	height: 60%;
+	width: auto;
+	vertical-align: middle;
+	padding-bottom: 3px;
+	background-color: transparent;
+	border-radius: 0;
+	border-right: 1.5px solid rgba(133, 128, 128, 0.8);
+	margin-right: 10px;
+	font-weight: bold;
+	margin-bottom: 2px;
+}
+
+#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close:focus,
+#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close:hover {
+	background-color: transparent !important;
+}
+
+#nImgViewer-overlay-ctrl input#nImgViewer-overlay-zoom {
+	height: 100%;
+	width: 200px;
+	vertical-align: middle;
+	cursor: pointer;
 }

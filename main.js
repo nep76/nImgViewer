@@ -11,7 +11,7 @@ function update_status()
 	const imgs = document.querySelectorAll( `img[data-dir-id]` );
 	const cnt  = gImageTile.getImagesCount();
 	document.getElementById( "status" ).textContent = `${cnt} 枚`;
-	document.getElementById( "empty" ).hidden = cnt > 0;
+	document.getElementById( "empty" ).hidden = ( cnt !== 0 );
 }
 
 document.getElementById( "add" ).addEventListener( "click", async () =>
@@ -104,4 +104,21 @@ document.addEventListener( "DOMContentLoaded", async () => {
 
 	document.body.appendChild( gOverlayViewer.getRootElement() );
 	document.querySelector( "main" ).appendChild( gImageTile.getRootElement() );
+
+	const observer = new ResizeObserver( ( () => {
+		let prev_width = null;
+
+		return async ( entries ) => {
+			for( const e of entries ){
+				if( e.target !== gImageTile.getRootElement() || e.contentRect.width === prev_width ) break;
+				
+				prev_width = e.contentRect.width;
+
+				await gImageTile.reCalcTiling();
+				break;
+			}
+		}
+	} )() );
+
+	observer.observe( gImageTile.getRootElement() );
 } );

@@ -49,9 +49,67 @@ export default class ImageTile
 		return this.id;
 	}
 
+	async #tiling_async( img, gallery_width )
+	{
+		let cur_img_width = 0, cur_img_ratio = 0
+
+    	await this.#get_image_size_async( img );
+
+    	cur_img_ratio =  this.baseHeight / img.naturalHeight;
+    	cur_img_width = img.naturalWidth * cur_img_ratio;
+
+    	if( gallery_width < ( this.totalLineWidth + cur_img_width ) ){
+    		const image_cnt  = this.lineEnd - this.lineStart;
+    		const zoom_ratio = gallery_width / this.totalLineWidth;
+
+    		for( let i = 0; i < image_cnt; i++ ){
+    			this.imgs[this.lineStart + i].style.width  = ( this.imgs[this.lineStart + i].naturalWidth * this.imgsRatio[i] * zoom_ratio ) - 2 + "px";
+    			this.imgs[this.lineStart + i].style.height = "auto";
+    		}
+        
+    		this.imgsRatio = [];
+    		this.totalLineWidth = 0;
+    		this.lineStart = this.lineEnd;
+    	}
+
+    	this.totalLineWidth += cur_img_width;
+    	this.imgsRatio.push( cur_img_ratio );
+
+    	this.lineEnd++;
+	}
+
+	#tiling_finish()
+	{
+		for( let i = this.lineStart; i < this.lineEnd; i++ ){
+    		this.imgs[i].style.width  = "auto";
+    		this.imgs[i].style.height = this.baseHeight + "px";
+		}
+	}
+
+	async reCalcTiling()
+	{
+		const gallery_style = getComputedStyle( this.rootElement );
+    	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
+
+		if( ! this.numImages ) return;
+
+		this.lineStart      = 0;
+		this.lineEnd        = 0;
+		this.totalLineWidth = 0;
+		this.imgsRatio      = [];
+
+		for( const img of this.imgs ){
+			await this.#tiling_async( img, gallery_width );
+		}
+
+		this.#tiling_finish();
+
+		return this.numImages;
+	}
+
     async addImagesByDirHandleAsync( dir_handle, gid )
     {
-    	let cnt = 0, cur_img_width = 0, cur_img_ratio = 0;
+    	let cnt = 0;
 
     	const gallery_style = getComputedStyle( this.rootElement );
     	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
@@ -79,43 +137,17 @@ export default class ImageTile
 
 				img.style.display = "block";
 
-            
-    		  	this.rootElement.appendChild( img );
+				this.rootElement.appendChild( img );
 
-    			await this.#get_image_size_async( img );
+    			await this.#tiling_async( img, gallery_width );
 
-    			cur_img_ratio =  this.baseHeight / img.naturalHeight;
-    			cur_img_width = img.naturalWidth * cur_img_ratio;
-
-    			if( gallery_width < ( this.totalLineWidth + cur_img_width ) ){
-    				const image_cnt  = this.lineEnd - this.lineStart;
-    				const zoom_ratio = gallery_width / this.totalLineWidth;
-
-    				for( let i = 0; i < image_cnt; i++ ){
-    					this.imgs[this.lineStart + i].style.width  = ( this.imgs[this.lineStart + i].naturalWidth * this.imgsRatio[i] * zoom_ratio ) - 2 + "px";
-    					this.imgs[this.lineStart + i].style.height = "auto";
-    				}
-                
-    				this.imgsRatio = [];
-    				this.totalLineWidth = 0;
-    				this.lineStart = this.lineEnd;
-    			}
-
-    			this.totalLineWidth += cur_img_width;
-    			this.imgsRatio.push( cur_img_ratio );
-
-    			this.imgs.push( img );
-    			this.lineEnd++;
+				this.imgs.push( img );
 
     		  	cnt++;
     		}
-
-			for( let i = this.lineStart; i < this.lineEnd; i++ ){
-    			this.imgs[i].style.width  = "auto";
-    			this.imgs[i].style.height = this.baseHeight + "px";
-			}
     	}
 
+		this.#tiling_finish();
 		this.numImages += cnt;
 
     	return cnt;
