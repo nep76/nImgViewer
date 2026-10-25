@@ -11,6 +11,11 @@ export default class OverlayViewer {
 		this.focusRatioX = 0;
 		this.focuxRatioY = 0;
 
+		this.grabbing       = false;
+		this.grabStartCoord = [ 0, 0 ];
+		this.grabScrollBase = [ 0, 0 ];
+		this.disableClick   = false;
+
 		this.domTree = {
 		  	root : document.createElement( "dialog" ),
 		  	ctrl : document.createElement( "div" ),
@@ -47,6 +52,9 @@ export default class OverlayViewer {
 
 	  	this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
 
+		this.domTree.scrl.draggable  = false;
+		this.domTree.image.draggable = false;
+
 		this.domTree.root.style.position = "fixed";
 		this.domTree.root.style.paddingTop = 0;
 		this.domTree.root.style.paddingBottom = 0;
@@ -75,6 +83,10 @@ export default class OverlayViewer {
 	  
 		this.domTree.root.addEventListener( "click", ( e ) => {
 		  if( e.target === this.domTree.root || e.target === this.domTree.scrl || e.target == this.domTree.close ){
+			if( this.disableClick ){
+				this.disableClick = false;
+				return;
+			}
 		    this.hide();
 		    this.setUrl( "" );
 
@@ -98,8 +110,40 @@ export default class OverlayViewer {
 			this.#updateZoom();
 	  		this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
 		} );
+
+		this.domTree.scrl.addEventListener( "pointerdown", ( e ) => {
+			this.grabStartCoord[0] = e.clientX;
+			this.grabStartCoord[1] = e.clientY;
+			this.grabScrollBase[0] = e.currentTarget.scrollLeft;
+			this.grabScrollBase[1] = e.currentTarget.scrollTop;
+			this.grabbing = true;
+			e.target.style.cursor = "grabbing";
+		} );
+		document.body.addEventListener( "pointerup", ( e ) => {
+			this.grabbing = false;
+			this.domTree.image.style.cursor = this.fit ? "zoom-in" : "zoom-out";
+			console.log( this );
+		} );
+		this.domTree.scrl.addEventListener( "pointermove", ( e ) => {
+			if( ! this.grabbing ) return;
+
+			const dx = this.grabStartCoord[0] - e.clientX;
+			const dy = this.grabStartCoord[1] - e.clientY;
+
+			if( Math.abs( dx ) >= 10 || Math.abs( dy ) >= 10 ){
+				this.disableClick = true;
+			}
+
+			e.currentTarget.scrollLeft = this.grabScrollBase[0] + dx;
+			e.currentTarget.scrollTop  = this.grabScrollBase[1] + dy;
+		} );
 	  
 		this.domTree.image.addEventListener( "click", ( e ) => {
+			if( this.disableClick ){
+				this.disableClick = false;
+				return;
+			}
+
 			this.fit = ( ! this.fit );
 
 			this.#updateFocusRatio( e.offsetX, e.offsetY );
