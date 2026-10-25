@@ -52,15 +52,16 @@ document.getElementById( "delete-cancel" ).addEventListener( "click", () => {
 	document.getElementById( "delete-modal" ).close();
 } );
 
-document.getElementById( "delete-ok" ).addEventListener( "click", async () => {
-	e.currentTarget.disabled = true;
+document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) => {
+	const button = e.currentTarget;
+	button.disabled = true;
 
 	try {
 		gImageTile.clear();
 		await gImgDir.clearAsync();
 		update_status();
 	} finally{
-		e.currentTarget.disabled = true;
+		button.disabled = true;
 	}
 
 	document.getElementById( "delete-modal" ).close();
