@@ -74,15 +74,17 @@ export default class OverlayViewer {
 		} );
 
 		this.domTree.flipX.addEventListener( "change", ( e ) => {
-			const flip_y = this.domTree.image.style.transform.includes( "scaleY" );
-			this.domTree.image.style.transform = e.target.checked ? "scaleX(-1)" : "";
-			if( flip_y ) this.domTree.image.style.transform += " scaleY(-1)";
+			let tf = "";
+			if( this.domTree.image.style.transform.includes( "scaleY" ) ) tf = "scaleY(-1)";
+			if( e.target.checked ) tf += "scaleX(-1)";
+			this.domTree.image.style.transform = tf;
 		} );
 
 		this.domTree.flipY.addEventListener( "change", ( e ) => {
-			const flip_x = this.domTree.image.style.transform.includes( "scaleX" );
-			this.domTree.image.style.transform = e.target.checked ? "scaleY(-1)" : "";
-			if( flip_x ) this.domTree.image.style.transform += " scaleX(-1)";
+			let tf = "";
+			if( this.domTree.image.style.transform.includes( "scaleX" ) ) tf = "scaleX(-1)";
+			if( e.target.checked ) tf += "scaleY(-1)";
+			this.domTree.image.style.transform = tf;
 		} );
 
 		this.domTree.zoomNum.addEventListener( "click", () => {
