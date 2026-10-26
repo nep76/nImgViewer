@@ -6,6 +6,7 @@ const gImgDir        = new ImageDirStore( "nImgViewer" );
 const gOverlayViewer = new OverlayViewer( "nImgViewer-overlay" );
 const gImageTile     = new ImageTile( "gallery" );
 
+let gAcceptDirHandle = {};
 let gDeniedDirHandle = {};
 
 function update_status()
@@ -71,7 +72,6 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 	document.getElementById( "rebuild-modal" ).close();
 
 	const desc = document.getElementById( "rebuild-desc" );
-	let accept_dir_handle = {};
 
 	try{
 		for( const key of Object.keys( gDeniedDirHandle ) ){
@@ -79,16 +79,15 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 			if( perm !== "granted" ){
 				console.log( `nImgViewer: Permission denied to read for the directory: ${gDeniedDirHandle[key].dirHandle.name }` );
 			} else{
-				accept_dir_handle[key] = gDeniedDirHandle[key];
+				gAcceptDirHandle[key] = gDeniedDirHandle[key];
 			}
-				delete gDeniedDirHandle[key];
+			delete gDeniedDirHandle[key];
 		}
 
-		for( const key of Object.keys( accept_dir_handle ) ){
-			await gImageTile.addImagesByDirHandleAsync( accept_dir_handle[key].dirHandle, key );
-			delete accept_dir_handle[key];
+		for( const key of Object.keys( gAcceptDirHandle ) ){
+			await gImageTile.addImagesByDirHandleAsync( gAcceptDirHandle[key].dirHandle, key );
+			delete gAcceptDirHandle[key];
 		}
-
 	} finally{
 		const cnt_denied = Object.keys( gDeniedDirHandle ).length;
 		update_status();
