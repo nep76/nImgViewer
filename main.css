@@ -90,7 +90,7 @@ button:hover {
 
 button:focus {
 	border: 2px solid  #3f6fc4;
-	background: #555 !important;
+	background: #555;
 	color: white;
   	outline: 0;
   	outline-offset: 0;
@@ -115,11 +115,11 @@ dialog {
   	border-radius: 10px;
   	scrollbar-color: #888 #333;
   	text-align: center;
+	min-width: 30%;
 }
 
 dialog::backdrop {
   	background-color: rgba( 0, 0, 0, 0.6 );
-  	backdrop-filter: blur( 4px );
 }
 
 span#status {

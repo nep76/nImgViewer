@@ -67,32 +67,43 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 	document.getElementById( "delete-modal" ).close();
 } );
 
-document.getElementById( "rebuild" ).addEventListener( "click", async ( e ) => {
-	const button = e.currentTarget;
-	const backup_label = button.textContent;
+document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) => {
+	document.getElementById( "rebuild-modal" ).close();
 
-	button.disabled = true;
-	button.textContent = "読み込み中...";
+	const desc = document.getElementById( "rebuild-desc" );
+	let accept_dir_handle = {};
 
 	try{
 		for( const key of Object.keys( gDeniedDirHandle ) ){
 			const perm = await gDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
-			if( perm === "granted" ){
-				await gImageTile.addImagesByDirHandleAsync( gDeniedDirHandle[key].dirHandle, key );
-			} else{
+			if( perm !== "granted" ){
 				console.log( `nImgViewer: Permission denied to read for the directory: ${gDeniedDirHandle[key].dirHandle.name }` );
+			} else{
+				accept_dir_handle[key] = gDeniedDirHandle[key];
 			}
+				delete gDeniedDirHandle[key];
 		}
 
-		gDeniedDirHandle = {};
+		for( const key of Object.keys( accept_dir_handle ) ){
+			await gImageTile.addImagesByDirHandleAsync( accept_dir_handle[key].dirHandle, key );
+			delete accept_dir_handle[key];
+		}
+
 	} finally{
-		button.textContent = backup_label;
-		button.disabled = false;
+		const cnt_denied = Object.keys( gDeniedDirHandle ).length;
+		update_status();
+		if( cnt_denied ){
+			desc.textContent = `あと ${cnt_denied} フォルダに対して許可が必要です。`;
+			document.getElementById( "rebuild-modal" ).showModal();
+		}
 	}
 
-	update_status();
+	gDeniedDirHandle = {};
+} );
 
+document.getElementById( "rebuild-abort" ).addEventListener( "click", async ( e ) => {
 	document.getElementById( "rebuild-modal" ).close();
+	gDeniedDirHandle = {};
 } );
 
 document.addEventListener( "DOMContentLoaded", async () => {
