@@ -11,7 +11,6 @@ let gDeniedDirHandle = {};
 
 function update_status()
 {
-	const imgs = document.querySelectorAll( `img[data-dir-id]` );
 	const cnt  = gImageTile.getImagesCount();
 	document.getElementById( "status" ).textContent = `${cnt} 枚`;
 	document.getElementById( "empty" ).hidden = ( cnt !== 0 );
@@ -87,6 +86,8 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 		for( const key of Object.keys( gAcceptDirHandle ) ){
 			await gImageTile.addImagesByDirHandleAsync( gAcceptDirHandle[key].dirHandle, key );
 			delete gAcceptDirHandle[key];
+
+			update_status();
 		}
 	} finally{
 		const cnt_denied = Object.keys( gDeniedDirHandle ).length;
