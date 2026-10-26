@@ -104,6 +104,8 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 document.getElementById( "rebuild-abort" ).addEventListener( "click", async ( e ) => {
 	document.getElementById( "rebuild-modal" ).close();
 	gDeniedDirHandle = {};
+
+	update_status();
 } );
 
 document.addEventListener( "DOMContentLoaded", async () => {
@@ -129,10 +131,10 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		}
 	}
 
-	update_status();
-	
 	if( Object.keys( gDeniedDirHandle ).length ){
 		document.getElementById( "rebuild-modal" ).showModal();
+	} else{
+		update_status();
 	}
 
 	const observer = new ResizeObserver( ( () => {
