@@ -3,7 +3,7 @@ import OverlayViewer from "./OverlayViewer.js";
 import ImageTile from "./ImageTile.js";
 
 const gImgDir        = new ImageDirStore( "nImgViewer" );
-const gOverlayViewer = new OverlayViewer( "nImgViewer-overlay" );
+const gOverlayViewer = new OverlayViewer( null );
 const gImageTile     = new ImageTile( "gallery" );
 
 let gAcceptDirHandle = {};

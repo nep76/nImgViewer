@@ -134,43 +134,45 @@ button#add {
 
 dialog#nImgViewer-overlay {
 	overflow: visible !important;
+	gap: 2px;
 }
 
 #nImgViewer-overlay-ctrl {
-	height: 42px;
-	background-color: rgba( 48, 48, 48, 0.85 );
-	border-radius: 21px;
-	padding-right: 20px;
-	padding-bottom: 4px;
-}
-
-#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close {
-	height: 60%;
-	width: auto;
-	vertical-align: middle;
-	padding-bottom: 3px;
-	background-color: transparent;
-	border-radius: 0;
-	border-right: 1.5px solid rgba(133, 128, 128, 0.8);
-	margin-right: 10px;
-	font-weight: bold;
-	margin-bottom: 2px;
-}
-
-#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close:focus,
-#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close:hover {
-	background-color: transparent !important;
+	width: 100%;
+	max-width: 400px;
+	border-radius: 10px;
+	background-color: #444;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 21px;
+	display: flex;
+	align-items: center;
+	gap: 2px;
 }
 
 #nImgViewer-overlay-ctrl input#nImgViewer-overlay-zoom {
-	height: 100%;
-	width: 200px;
-	vertical-align: middle;
+	flex: 1;
+	min-width: 0;
+	vertical-align: bottom;;
 	cursor: pointer;
 }
 
 #nImgViewer-overlay-ctrl span#nImgViewer-overlay-zoom-num {
+	flex: 0 0 45px;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-size: 13px;
-	margin-left: 5px;
+	padding: 0 15px 0 5px;
 }
+
+
+#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close {
+	background-color: transparent;
+	font-weight: bold;
+	border-width : 0;
+	flex: 0 0 45px;
+}
+#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close:focus {
+	background-color: rgba( 255, 255, 255, 0.1 );
+}
+
+

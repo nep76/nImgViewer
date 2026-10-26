@@ -1,0 +1,107 @@
+dialog#OverlayViewer {
+  	color: #ddd;
+  	border: 1px solid  #3f6fc4;
+  	background: #333;
+  	border-radius: 10px;
+  	scrollbar-color: #888 #333;
+  	text-align: center;    
+    overflow: visible !important;
+    position: fixed;
+    padding-top: 0;
+    padding-bottom: 0;
+    width: 95vw;
+    height: 95vh;
+    flex-direction: column;
+	gap: 2px;
+}
+
+dialog#OverlayViewer::backdrop {
+  	background-color: rgba( 0, 0, 0, 0.6 );
+}
+
+dialog#OverlayViewer button {
+  	height: 42px;
+  	padding: 0 20px;
+  	border: 2px solid transparent;
+  	border-radius: 6px;
+  	background: #555;
+  	color: #aaa;
+  	font: inherit;
+  	font-weight: bold;
+  	cursor: pointer;
+  	display: inline-block;
+}
+
+dialog#OverlayViewer button:hover {
+  	background: #3f6fc4 !important;
+  	color: white;
+}
+
+dialog#OverlayViewer button:focus {
+	border: 2px solid  #3f6fc4;
+	background: #555;
+	color: white;
+  	outline: 0;
+  	outline-offset: 0;
+}
+
+dialog#OverlayViewer #OverlayViewer-ctrl {
+    flex: 0 0 42px;
+	width: 100%;
+	max-width: 400px;
+	border-radius: 10px;
+	background-color: #444;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 21px;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+dialog#OverlayViewer #OverlayViewer-ctrl label {
+    display: none;
+}
+
+dialog#OverlayViewer #OverlayViewer-scrl {
+    flex: 1;
+    width: 100%;
+    overflow: auto;
+    scrollbar-gutter: "stable";
+    overscroll-behavior: "contain";
+    display: flex;
+}
+
+dialog#OverlayViewer #OverlayViewer-image {
+    display: block;
+    margin-Inline: auto;
+    margin-block: auto;
+}
+
+dialog#OverlayViewer #OverlayViewer-zoom {
+    flex: 1;
+	min-width: 0;
+	vertical-align: bottom;;
+	cursor: pointer;
+}
+
+dialog#OverlayViewer #OverlayViewer-zoom-num {
+	flex: 0 0 45px;
+	font-family: Verdana, Geneva, Tahoma, sans-serif;
+	font-size: 13px;
+	padding: 0 15px 0 5px;
+    cursor: "pointer";
+}
+
+dialog#OverlayViewer #OverlayViewer-close {
+	background-color: transparent;
+	font-weight: bold;
+	border-width : 0;
+	flex: 0 0 45px;
+}
+
+dialog#OverlayViewer #OverlayViewer-close:focus {
+	background-color: rgba( 255, 255, 255, 0.1 );
+}
+
+

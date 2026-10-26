@@ -1,10 +1,8 @@
 
 export default class OverlayViewer {
-	constructor( id )
+	constructor( name )
 	{
-		let e;
-		
-		this.id = id;
+		this.name = name;
 		this.fit = true;
 		this.zoomRaf = null;
 		
@@ -16,72 +14,48 @@ export default class OverlayViewer {
 		this.grabScrollBase = [ 0, 0 ];
 		this.disableClick   = false;
 
+		this.html = document.createRange().createContextualFragment( `
+			<dialog id="OverlayViewer">
+				<div id="OverlayViewer-ctrl">
+					<input type="checkbox" id="OverlayViewer-grayscale"><label for="OverlayViewer-grayscale">グレースケール</label>
+					<input type="checkbox" id="OverlayViewer-flip-x"><label for="OverlayViewer-flip-x">左右反転</label>
+					<input type="checkbox" id="OverlayViewer-flip-y"><label for="OverlayViewer-flip-y">上下反転</label>
+					<input type="range" id="OverlayViewer-zoom">
+					<label for="OverlayViewer-zoom">ズーム</label> <span id="OverlayViewer-zoom-num"></span>
+					<button id="OverlayViewer-close" title="閉じる" aria-label="ビューワーを閉じる" autofocus>✕</button>
+				</div>
+				<div id="OverlayViewer-scrl" draggable="false">
+					<img id="OverlayViewer-image" draggable="false">
+				</div>
+			</dialog>
+		` );
+
+		this.root = this.html.firstElementChild;
 		this.domTree = {
-		  	root : document.createElement( "dialog" ),
-		  	ctrl : document.createElement( "div" ),
-		  	close: document.createElement( "button" ),
-		  	zoom : document.createElement( "input" ),
-			zoomNum: document.createElement( "span" ),		
-		 	scrl : document.createElement( "div" ),
-		  	image: document.createElement( "img" )
+		  	ctrl : this.root.querySelector( "#OverlayViewer-ctrl" ),
+		  	close: this.root.querySelector( "#OverlayViewer-close" ),
+		 	scrl : this.root.querySelector( "#OverlayViewer-scrl" ),
+		  	image: this.root.querySelector( "#OverlayViewer-image" ),
+
+			grayscale: this.root.querySelector( "#OverlayViewer-grayscale" ),
+			flipX    : this.root.querySelector( "#OverlayViewer-flip-x" ),
+			flipY    : this.root.querySelector( "#OverlayViewer-flip-y" ),
+		  	zoom     : this.root.querySelector( "#OverlayViewer-zoom" ),
+			zoomNum  : this.root.querySelector( "#OverlayViewer-zoom-num" )
 		};
-	  
-		this.domTree.root.id  = this.id;
-		this.domTree.ctrl.id  = this.id + "-ctrl";
-		this.domTree.close.id = this.id + "-close";
-		this.domTree.zoom.id  = this.id + "-zoom";
-		this.domTree.zoomNum.id = this.id + "-zoom-num";
-		this.domTree.scrl.id  = this.id + "-scrl";
-		this.domTree.image.id = this.id + "-image";
-	  
-		this.domTree.root.appendChild( this.domTree.ctrl );
-		this.domTree.root.appendChild( this.domTree.scrl );
-	  
-		this.domTree.ctrl.appendChild( this.domTree.close );
-		this.domTree.ctrl.appendChild( this.domTree.zoom );
-		this.domTree.ctrl.appendChild( this.domTree.zoomNum );
-	  
-		this.domTree.scrl.appendChild( this.domTree.image );
-	  
-		this.domTree.close.textContent = "✕"
-	  
-		this.domTree.zoom.type   = "range";
-		this.domTree.zoom.min    = 10;
-		this.domTree.zoom.max    = 1600;
-		this.domTree.zoom.value  = 100;
 
-	  	this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
-
-		this.domTree.scrl.draggable  = false;
-		this.domTree.image.draggable = false;
-
-		this.domTree.root.style.position = "fixed";
-		this.domTree.root.style.paddingTop = 0;
-		this.domTree.root.style.paddingBottom = 0;
-		this.domTree.root.style.width = "95vw";
-		this.domTree.root.style.height = "95vh";
+		if( name ) this.root.className = name;
 	  
-		this.domTree.ctrl.style.position = "absolute";
-		this.domTree.ctrl.style.top = 0;
-		this.domTree.ctrl.style.left = "50%";
-		this.domTree.ctrl.style.transform = "translateX(-50%)";
-	  
-		this.domTree.zoomNum.style.cursor = "pointer";
+		this.domTree.zoom.min   = 10;
+		this.domTree.zoom.max   = 1600;
+		this.domTree.zoom.value = 200;
+		this.domTree.zoom.step  = 2;
+	  	this.domTree.zoomNum.textContent = "100%";
 
-		this.domTree.scrl.style.display = "flex";
-		this.domTree.scrl.style.width = "100%";
-		this.domTree.scrl.style.height = "100%";
-		this.domTree.scrl.style.overflow = "auto";
-		this.domTree.scrl.style.scrollbarGutter = "stable";
-		this.domTree.scrl.style.overscrollBehavior = "contain";
-		
-		this.domTree.image.style.display = "block";
-		this.domTree.image.style.marginInline = "auto";
-		this.domTree.image.style.marginBlock = "auto";
 		this.domTree.image.style.height = "100%";
 		this.domTree.image.style.cursor = "zoom-in";
 	  
-		this.domTree.root.addEventListener( "click", ( e ) => {
+		this.root.addEventListener( "click", ( e ) => {
 		  if( e.target === this.domTree.root || e.target === this.domTree.scrl || e.target == this.domTree.close ){
 			if( this.disableClick ){
 				this.disableClick = false;
@@ -91,16 +65,28 @@ export default class OverlayViewer {
 		    this.setUrl( "" );
 
 			this.fit = true;
-			this.domTree.zoom.value = 100;
-			this.domTree.zoomNum.textContent = this.domTree.zoom.value +"%";
-			this.#updateZoom();
+			this.#resetZoom();			
 		  }
 		}, false );
 
+		this.domTree.grayscale.addEventListener( "change", ( e ) => {
+			this.domTree.image.style.filter = e.target.checked ? "grayscale(100%)" : "";
+		} );
+
+		this.domTree.flipX.addEventListener( "change", ( e ) => {
+			const flip_y = this.domTree.image.style.transform.includes( "scaleY" );
+			this.domTree.image.style.transform = e.target.checked ? "scaleX(-1)" : "";
+			if( flip_y ) this.domTree.image.style.transform += " scaleY(-1)";
+		} );
+
+		this.domTree.flipY.addEventListener( "change", ( e ) => {
+			const flip_x = this.domTree.image.style.transform.includes( "scaleX" );
+			this.domTree.image.style.transform = e.target.checked ? "scaleY(-1)" : "";
+			if( flip_x ) this.domTree.image.style.transform += " scaleX(-1)";
+		} );
+
 		this.domTree.zoomNum.addEventListener( "click", () => {
-			this.domTree.zoom.value = 100;
-			this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
-			this.#updateZoom();
+			this.#resetZoom();
 		} );
 
 		this.domTree.zoom.addEventListener( "pointerdown", () => {
@@ -108,7 +94,7 @@ export default class OverlayViewer {
 		} );
 		this.domTree.zoom.addEventListener( "input", () => {
 			this.#updateZoom();
-	  		this.domTree.zoomNum.textContent = this.domTree.zoom.value + "%";
+	  		this.domTree.zoomNum.textContent = this.domTree.zoom.value / 2 + "%";
 		} );
 
 		this.domTree.scrl.addEventListener( "pointerdown", ( e ) => {
@@ -122,7 +108,6 @@ export default class OverlayViewer {
 		document.body.addEventListener( "pointerup", ( e ) => {
 			this.grabbing = false;
 			this.domTree.image.style.cursor = this.fit ? "zoom-in" : "zoom-out";
-			console.log( this );
 		} );
 		this.domTree.scrl.addEventListener( "pointermove", ( e ) => {
 			if( ! this.grabbing ) return;
@@ -157,6 +142,13 @@ export default class OverlayViewer {
 		} );
 	}
 
+	#resetZoom()
+	{
+		this.domTree.zoom.value = 200;
+		this.domTree.zoomNum.textContent = "100%";
+		this.#updateZoom();
+	}
+
 	#updateFocusRatio( x, y )
 	{
 		const rect = this.domTree.image.getBoundingClientRect();
@@ -167,7 +159,7 @@ export default class OverlayViewer {
 
 	#updateZoom()
 	{
-		const scale = this.domTree.zoom.valueAsNumber / 100;
+		const scale = this.domTree.zoom.valueAsNumber / 200;
 
 		this.domTree.image.style.height = this.fit ? `${100 * scale}%` : `${this.domTree.image.naturalHeight * scale}px`
 
@@ -184,13 +176,14 @@ export default class OverlayViewer {
 
 	getRootElement()
 	{
-	  	return this.domTree.root;
+	  	return this.root;
 	}
 
 	show()
 	{
-	  	this.domTree.root.showModal();
-
+	  	this.root.showModal();
+		this.root.style.display = "flex";
+		
 		requestAnimationFrame( () => {
 			this.#updateFocusRatio( null, null );
 		} );
@@ -198,7 +191,8 @@ export default class OverlayViewer {
 
 	hide()
 	{
-	  	this.domTree.root.close();
+	  	this.root.close();
+		this.root.style.display = "none";
 	}
 
 	setUrl( url )
