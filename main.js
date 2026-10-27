@@ -156,7 +156,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 
 	observer.observe( gImageTile.getRootElement() );
 
-	if( ! localStorage.getItem( "policy-ok" ) ){
+	if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( dirs ).length ){
 		document.getElementById( "policy-modal" ).showModal();
 	}
 } );

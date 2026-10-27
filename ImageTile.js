@@ -7,6 +7,25 @@ export default class ImageTile extends EventTarget
     {
 		super();
 
+		/*
+		this.iocb = new IntersectionObserver( async ( entries ) => {
+			for( const entry of entries ){
+				if( entry.isIntersecting ){
+					entry.target.src = this.images[entry.target.dataset.index].url;
+					await entry.target.decode();
+					if( entry.target.hasAttribute( "src") ){
+						entry.target.style.visibility = "visible";
+					}
+				} else{
+					entry.target.style.visibility = "hidden";
+					entry.target.removeAttribute( "src" );
+				}
+			}
+		}, {
+			rootMargin: "300px 0px"
+		} );
+		*/
+
         this.rootElement = document.createElement( "div" );
         this.rootElement.id = id;
 
@@ -24,7 +43,7 @@ export default class ImageTile extends EventTarget
     {
         this.lineStart      = 0;
         this.lineEnd        = 0;
-        this.imgs           = [];
+		this.images         = [];
         this.imgsRatio      = [];
         this.totalLineWidth = 0;
 		this.numImages      = 0;
@@ -40,24 +59,21 @@ export default class ImageTile extends EventTarget
 		return this.id;
 	}
 
-	async #tiling_async( img, gallery_width )
+	async #tiling_async( image, gallery_width )
 	{
-		let cur_img_width = 0, cur_img_ratio = 0
+		let cur_width = 0, cur_ratio = 0
 
-		await img.decode();
+    	cur_ratio = this.baseHeight / image.realHeight;
+    	cur_width = image.realWidth * cur_ratio;
 
-		console.log( img.naturalWidth );
-
-    	cur_img_ratio =  this.baseHeight / img.naturalHeight;
-    	cur_img_width = img.naturalWidth * cur_img_ratio;
-
-    	if( gallery_width < ( this.totalLineWidth + cur_img_width ) ){
+    	if( gallery_width < ( this.totalLineWidth + cur_width ) ){
     		const image_cnt  = this.lineEnd - this.lineStart;
     		const zoom_ratio = gallery_width / this.totalLineWidth;
 
     		for( let i = 0; i < image_cnt; i++ ){
-    			this.imgs[this.lineStart + i].style.width  = ( this.imgs[this.lineStart + i].naturalWidth * this.imgsRatio[i] * zoom_ratio ) - 2 + "px";
-    			this.imgs[this.lineStart + i].style.height = "auto";
+    			this.images[this.lineStart + i].element.width  = ( this.images[this.lineStart + i].realWidth * this.imgsRatio[i] * zoom_ratio ) - 2;
+    			this.images[this.lineStart + i].element.height = ( this.images[this.lineStart + i].realHeight * this.imgsRatio[i] * zoom_ratio ) - 2;
+			//	this.images[this.lineStart + i].element.style.containIntrinsicSize = `${this.images[this.lineStart + i].element.width}px ${this.images[this.lineStart + i].element.height}px`;
     		}
         
     		this.imgsRatio = [];
@@ -65,8 +81,8 @@ export default class ImageTile extends EventTarget
     		this.lineStart = this.lineEnd;
     	}
 
-    	this.totalLineWidth += cur_img_width;
-    	this.imgsRatio.push( cur_img_ratio );
+    	this.totalLineWidth += cur_width;
+    	this.imgsRatio.push( cur_ratio );
 
     	this.lineEnd++;
 	}
@@ -74,8 +90,9 @@ export default class ImageTile extends EventTarget
 	#tiling_finish()
 	{
 		for( let i = this.lineStart; i < this.lineEnd; i++ ){
-    		this.imgs[i].style.width  = "auto";
-    		this.imgs[i].style.height = this.baseHeight + "px";
+    		this.images[i].element.width  = this.images[i].realWidth * ( this.baseHeight / this.images[i].realHeight );
+    		this.images[i].element.height = this.baseHeight;
+		//	this.images[i].element.style.containIntrinsicSize = `${this.images[i].element.width}px ${this.images[i].element.height}px`;
 		}
 	}
 
@@ -91,8 +108,8 @@ export default class ImageTile extends EventTarget
 		this.totalLineWidth = 0;
 		this.imgsRatio      = [];
 
-		for( const img of this.imgs ){
-			await this.#tiling_async( img, gallery_width );
+		for( const image of this.images ){
+			await this.#tiling_async( image, gallery_width );
 		}
 
 		this.#tiling_finish();
@@ -100,16 +117,30 @@ export default class ImageTile extends EventTarget
 		return this.numImages;
 	}
 
-    async addImagesByDirHandleAsync( dir_handle, gid )
-    {
-    	let cnt = 0;
+	async #workerPool( start_index, maxjobs, cb )
+	{
+		let cur_idx = start_index;
+		const images = this.images;
 
-    	const gallery_style = getComputedStyle( this.rootElement );
-    	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
+		async function worker()
+		{
+			while( 1 ){
+				const i = cur_idx++;
+				if( i >= images.length ) return;
+				await cb( images[i] );
+			}
+		}
 
-    	for await ( const [name, handle] of dir_handle.entries() ){
+		await Promise.all(
+			Array.from( { length: Math.min( maxjobs, images.length ) }, () => worker() )
+		);
+	}
+
+	async #findImageFilesAsync( dir_handle, gid ){
+		let cnt = 0;
+		for await ( const [name, handle] of dir_handle.entries() ){
     		if( handle.kind === "directory" ){
-    		  	cnt += await this.addImagesByDirHandleAsync( handle, gid );
+    		  	cnt += await this.#findImageFilesAsync( handle, gid );
     		  	continue
     		} else if( handle.kind != "file" ){
     		  	continue;
@@ -121,37 +152,63 @@ export default class ImageTile extends EventTarget
 			this.dispatchEvent( ev_dir_open );
         
     		if( /\.(jpe?g|png)$/i.test( name ) ){
-    		  	const file = await handle.getFile();
-    		  	const url = URL.createObjectURL( file );
-
-    		  	const img = document.createElement( "img" );
-    		  	img.loading = "eager";
-    		  	img.decoding = "async";
-				img.width = this.baseHeight;
-				img.height = this.baseHeight;
-    		  	img.alt = "";
-    		  	img.src = url;
-    		  	img.dataset.groupId = gid;
-
-				img.style.display = "block";
-
-				const ev_file_open = new CustomEvent( "OpenFile", {
-					detail: {
-						handle: file,
-						element: img
-					}
+				this.images.push( {
+					fileHandle: await handle.getFile(),
+					gruopId: gid
 				} );
-				this.dispatchEvent( ev_file_open );
+			}
+		}
+		return cnt;
+	}
 
-				this.rootElement.appendChild( img );
+    async addImagesByDirHandleAsync( dir_handle, gid )
+    {
+    	let cnt = 0;
 
-    			await this.#tiling_async( img, gallery_width );
+    	const gallery_style = getComputedStyle( this.rootElement );
+    	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
 
-				this.imgs.push( img );
+		await this.#findImageFilesAsync( dir_handle, gid );
 
-    		  	cnt++;
-    		}
-    	}
+		await this.#workerPool( this.numImages, 10, async ( image ) => {
+			image.url         = URL.createObjectURL( image.fileHandle );
+			image.element     = document.createElement( "img" );
+			image.element.alt      = "";
+			image.element.decoding = "async";
+			image.element.dataset.groupId = gid;
+			image.element.dataset.index   = this.numImages + cnt++;
+
+			image.element.style.contentVisibility = "auto";
+			
+			try{
+				return await new Promise( ( resolve, reject ) => {
+					image.element.addEventListener( "load", () => {
+						image.realWidth  = image.element.naturalWidth;
+						image.realHeight = image.element.naturalHeight;
+						//this.iocb.observe( image.element );
+						resolve();
+					}, { once: true } );
+					image.element.addEventListener( "error", () => {
+						reject();
+					}, { once: true } );
+					image.element.src = image.url;
+				} );
+			} catch{
+				URL.revokeObjectURL( image.url );
+				image.url        = null;
+				image.element    = null;
+				image.realWidth  = 0;
+				image.realHeight = 0;
+			}
+		} );
+		
+		for( let i = this.numImages; i < this.images.length; i++ ){
+			if( this.images[i].element ){
+				this.images[i].element.loading  = "lazy";
+				await this.#tiling_async( this.images[i], gallery_width );
+				this.rootElement.appendChild( this.images[i].element );
+			}
+		}
 
 		this.#tiling_finish();
 		this.numImages += cnt;

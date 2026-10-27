@@ -219,12 +219,12 @@ dialog#policy-modal ul li strong {
 	color: #ddd;
 }
 
-dialog#nImgViewer-overlay {
+dialog#OverlayViewer {
 	overflow: visible !important;
 	gap: 2px;
 }
 
-#nImgViewer-overlay-ctrl {
+#OverlayViewer-ctrl {
 	width: 100%;
 	max-width: 400px;
 	border-radius: 10px;
@@ -237,28 +237,28 @@ dialog#nImgViewer-overlay {
 	gap: 2px;
 }
 
-#nImgViewer-overlay-ctrl input#nImgViewer-overlay-zoom {
+#OverlayViewer-ctrl input#OverlayViewer-zoom {
 	flex: 1;
 	min-width: 0;
 	vertical-align: bottom;;
 	cursor: pointer;
 }
 
-#nImgViewer-overlay-ctrl span#nImgViewer-overlay-zoom-num {
+#OverlayViewer-ctrl span#OverlayViewer-zoom-num {
 	flex: 0 0 45px;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
 	font-size: 13px;
 	padding: 0 15px 0 5px;
+	cursor: pointer;
 }
 
-
-#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close {
+#OverlayViewer-ctrl button#OverlayViewer-close {
 	background-color: transparent;
 	font-weight: bold;
 	border-width : 0;
 	flex: 0 0 45px;
 }
-#nImgViewer-overlay-ctrl button#nImgViewer-overlay-close:focus {
+#OverlayViewer-ctrl button#OverlayViewer-close:focus {
 	background-color: rgba( 255, 255, 255, 0.1 );
 }
 
