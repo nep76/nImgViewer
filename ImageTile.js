@@ -1,10 +1,12 @@
 // まずgetRootElementでDOMを繋げてからつかうこと
 // 画像のサイズ計算ができない
 
-export default class ImageTile
+export default class ImageTile extends EventTarget
 {
     constructor( id )
     {
+		super();
+
         this.rootElement = document.createElement( "div" );
         this.rootElement.id = id;
 
@@ -28,17 +30,6 @@ export default class ImageTile
 		this.numImages      = 0;
     }
 
-    async #get_image_size_async( img )
-    {
-        if( ! img.complete ){
-            await new Promise( ( resolve, reject ) => {
-                img.addEventListener( "load", resolve, { once: true } );
-                img.addEventListener( "error", reject, { once: true } );
-            } );
-        }
-        return true;
-    }
-
 	getRootElement()
 	{
 		return this.rootElement;
@@ -53,7 +44,9 @@ export default class ImageTile
 	{
 		let cur_img_width = 0, cur_img_ratio = 0
 
-    	await this.#get_image_size_async( img );
+		await img.decode();
+
+		console.log( img.naturalWidth );
 
     	cur_img_ratio =  this.baseHeight / img.naturalHeight;
     	cur_img_width = img.naturalWidth * cur_img_ratio;
@@ -121,6 +114,11 @@ export default class ImageTile
     		} else if( handle.kind != "file" ){
     		  	continue;
     		}
+
+			const ev_dir_open = new CustomEvent( "OpenDirectory", {
+				detail: { handle: handle }
+			} );
+			this.dispatchEvent( ev_dir_open );
         
     		if( /\.(jpe?g|png)$/i.test( name ) ){
     		  	const file = await handle.getFile();
@@ -136,6 +134,14 @@ export default class ImageTile
     		  	img.dataset.groupId = gid;
 
 				img.style.display = "block";
+
+				const ev_file_open = new CustomEvent( "OpenFile", {
+					detail: {
+						handle: file,
+						element: img
+					}
+				} );
+				this.dispatchEvent( ev_file_open );
 
 				this.rootElement.appendChild( img );
 

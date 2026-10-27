@@ -16,6 +16,10 @@ function update_status()
 	document.getElementById( "empty" ).hidden = ( cnt !== 0 );
 }
 
+document.getElementById( "app-name" ).addEventListener( "click", () => {
+	document.getElementById( "policy-modal" ).showModal();
+} );
+
 document.getElementById( "add" ).addEventListener( "click", async () =>
 {
 	const f = document.createDocumentFragment();
@@ -44,12 +48,9 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 	}
 });
 
-document.getElementById( "reset" ).addEventListener( "click", async () => {
-	document.getElementById( "delete-modal" ).showModal();
-});
-
-document.getElementById( "delete-cancel" ).addEventListener( "click", () => {
-	document.getElementById( "delete-modal" ).close();
+document.getElementById( "policy-ok" ).addEventListener( "click", () => {
+	document.getElementById( "policy-modal" ).close();
+	localStorage.setItem( "policy-ok", "1" );
 } );
 
 document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) => {
@@ -60,6 +61,7 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 		gImageTile.clear();
 		await gImgDir.clearAsync();
 		update_status();
+		localStorage.clear();
 	} finally{
 		button.disabled = true;
 	}
@@ -101,7 +103,7 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 	gDeniedDirHandle = {};
 } );
 
-document.getElementById( "rebuild-abort" ).addEventListener( "click", async ( e ) => {
+document.getElementById( "rebuild-abort" ).addEventListener( "click", ( e ) => {
 	document.getElementById( "rebuild-modal" ).close();
 	gDeniedDirHandle = {};
 
@@ -153,4 +155,8 @@ document.addEventListener( "DOMContentLoaded", async () => {
 	} )() );
 
 	observer.observe( gImageTile.getRootElement() );
+
+	if( ! localStorage.getItem( "policy-ok" ) ){
+		document.getElementById( "policy-modal" ).showModal();
+	}
 } );

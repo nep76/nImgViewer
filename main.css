@@ -46,9 +46,28 @@ footer a{
 	color: #999;
 }
 
+footer a:focus,
 footer a:hover {
 	color: #bbb;
 }
+
+footer #invoke-policy-modal {
+	appearance: none;
+	margin: 0;
+	padding : 0;
+	background: none;
+	font-weight: normal;
+	text-decoration: underline;
+	border: none;
+	color: #999;
+}
+
+footer #invoke-policy-modal:focus,
+footer #invoke-policy-modal:hover {
+	background: none !important;
+	color: #bbb;
+}
+
 
 h1 {
 	padding: 0;
@@ -57,6 +76,7 @@ h1 {
 	color: #999;
 	position: absolute;
 	right: 25px;
+	cursor: pointer;
 }
 
 h1:before {
@@ -68,6 +88,10 @@ h1:before {
 	margin-top: -3px;
 	background: url( "./favicon.svg" ) center / contain no-repeat;
 	vertical-align: middle;
+}
+
+h1:hover {
+	color: #bbb;
 }
 
 button {
@@ -130,6 +154,69 @@ span#status {
 
 button#add {
 	font-size: 20px;
+}
+
+dialog#policy-modal {
+	width: 100%;
+	max-width: 630px;
+	text-align: left;
+	flex-direction: column;
+	gap: 7px;
+}
+
+dialog#policy-modal:open {
+	display: flex;
+}
+
+dialog#policy-modal h1 {
+	position: relative;
+	right: auto;
+	color: #ddd;
+	text-align: center;
+	cursor: auto;
+}
+
+dialog#policy-modal div {
+	overflow: auto;
+	border-radius: 10px;
+	background-color: #2d2d2d;
+	padding-left: 15px;
+	padding-right: 15px;
+	flex: 1;
+	margin: 5px auto;
+}
+
+dialog#policy-modal button {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+dialog#policy-modal h2 {
+	font-size: medium;
+	border-bottom: 1px solid #666;
+	color: #bbb;
+	margin-top: 1.5em;
+	margin-bottom: 5px;
+}
+
+dialog#policy-modal ul {
+	font-size: smaller;
+	padding-left: 1.5em;
+	margin-top: 0;
+}
+
+dialog#policy-modal ul li {
+	padding: 3px 2px;
+	margin-bottom: 2px;
+	color: #999;
+	letter-spacing: 0.1px;
+	line-break: strict;
+}
+
+dialog#policy-modal ul li strong {
+	font-weight: normal;
+	color: #ddd;
 }
 
 dialog#nImgViewer-overlay {
