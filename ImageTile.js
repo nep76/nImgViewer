@@ -290,21 +290,19 @@ export default class ImageTile extends EventTarget
 
 		this.#updateGalleryWidth();
 
-		await this.#findImageFilesAsync( this.images, dir_handle, gid );
-		if( ! this.numImages ){
-			this.images.sort( ( a, b ) => {
-				const dir_cmp = a.dirHandle.name.localeCompare( b.dirHandle.name, undefined, {
-					numeric: true,
-					sensitivity: "base"
-				}) ;
+		{
+			let new_images = [];
 
-				if( dir_cmp !== 0 ) return dir_cmp;
+			await this.#findImageFilesAsync( new_images, dir_handle, gid );
 
+			new_images.sort( ( a, b ) => {
 				return a.fileObj.name.localeCompare( b.fileObj.name, undefined, {
 					numeric: true,
 					sensitivity: "base"
 				} );
 			} );
+			
+			this.images.push( ...new_images );
 		}
 
 		await this.#workerPool( this.images, this.numImages, 3, async ( image ) => {
