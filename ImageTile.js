@@ -7,25 +7,12 @@ export default class ImageTile extends EventTarget
     {
 		super();
 
-		/*
-		this.iocb = new IntersectionObserver( async ( entries ) => {
-			for( const entry of entries ){
-				if( entry.isIntersecting ){
-					entry.target.src = this.images[entry.target.dataset.index].url;
-					await entry.target.decode();
-					if( entry.target.hasAttribute( "src") ){
-						entry.target.style.visibility = "visible";
-					}
-				} else{
-					entry.target.style.visibility = "hidden";
-					entry.target.removeAttribute( "src" );
-				}
-			}
-		}, {
-			rootMargin: "300px 0px"
-		} );
-		*/
 		this.idh = idh;
+
+		this.galleryWidth = 0;
+
+		this.displayReady = true;
+		this.displayIndex = 0;
 
 		this.thumbWorkerReady = true;
 		this.thumbCache = {};
@@ -33,14 +20,10 @@ export default class ImageTile extends EventTarget
         this.rootElement = document.createElement( "div" );
         this.rootElement.id = id;
 
-		this.rootElement.style.display  = "flex";
-		this.rootElement.style.flexWrap = "wrap";
-		this.rootElement.style.gap      = "2px";
-		this.rootElement.style.padding  = "2px";
-
 		this.baseHeight = 220;
 		
         this.#init();
+		this.#updateGalleryWidth();
     }
 
     #init()
@@ -52,6 +35,11 @@ export default class ImageTile extends EventTarget
         this.totalLineWidth = 0;
 		this.numImages      = 0;
     }
+
+	#updateGalleryWidth(){
+		const gallery_style = getComputedStyle( this.rootElement );
+    	this.galleryWidth = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
+	}
 
 	async loadThumbsFromDb()
 	{
@@ -74,16 +62,16 @@ export default class ImageTile extends EventTarget
 		return this.id;
 	}
 
-	async #tiling_async( image, gallery_width )
+	async #tiling_async( image )
 	{
 		let cur_width = 0, cur_ratio = 0
 
     	cur_ratio = this.baseHeight / image.realHeight;
     	cur_width = image.realWidth * cur_ratio;
 
-    	if( gallery_width < ( this.totalLineWidth + cur_width ) ){
+    	if( this.galleryWidth < ( this.totalLineWidth + cur_width ) ){
     		const image_cnt  = this.lineEnd - this.lineStart;
-    		const zoom_ratio = gallery_width / this.totalLineWidth;
+    		const zoom_ratio = this.galleryWidth / this.totalLineWidth;
 
     		for( let i = 0; i < image_cnt; i++ ){
     			this.images[this.lineStart + i].element.width  = ( this.images[this.lineStart + i].realWidth * this.imgsRatio[i] * zoom_ratio ) - 2;
@@ -101,8 +89,6 @@ export default class ImageTile extends EventTarget
     	this.lineEnd++;
 	}
 
-	
-
 	#tiling_finish()
 	{
 		for( let i = this.lineStart; i < this.lineEnd; i++ ){
@@ -113,9 +99,6 @@ export default class ImageTile extends EventTarget
 
 	async reCalcTilingAsync()
 	{
-		const gallery_style = getComputedStyle( this.rootElement );
-    	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
-
 		if( ! this.numImages ) return;
 
 		this.lineStart      = 0;
@@ -123,8 +106,10 @@ export default class ImageTile extends EventTarget
 		this.totalLineWidth = 0;
 		this.imgsRatio      = [];
 
+		this.#updateGalleryWidth();
+
 		for( const image of this.images ){
-			await this.#tiling_async( image, gallery_width );
+			await this.#tiling_async( image );
 		}
 
 		this.#tiling_finish();
@@ -150,11 +135,12 @@ export default class ImageTile extends EventTarget
 		);
 	}
 
-	async #findImageFilesAsync( dir_handle, gid ){
+	async #findImageFilesAsync( array, dir_handle, gid ){
 		let cnt = 0;
+		
 		for await ( const [name, handle] of dir_handle.entries() ){
     		if( handle.kind === "directory" ){
-    		  	cnt += await this.#findImageFilesAsync( handle, gid );
+    		  	cnt += await this.#findImageFilesAsync( array, handle, gid );
     		  	continue
     		} else if( handle.kind != "file" ){
     		  	continue;
@@ -166,12 +152,15 @@ export default class ImageTile extends EventTarget
 			this.dispatchEvent( ev_dir_open );
         
     		if( /\.(jpe?g|png)$/i.test( name ) ){
-				this.images.push( {
-					fileObj: await handle.getFile(),
-					gruopId: gid
+				array.push( {
+					dirHandle: dir_handle,
+					fileObj  : await handle.getFile(),
+					gruopId  : gid,
+					ready    : false
 				} );
 			}
 		}
+
 		return cnt;
 	}
 
@@ -271,15 +260,54 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
+	async #displayImagesAsync()
+	{
+		if( ! this.displayReady ) return;
+
+		this.displayReady = false;
+
+		try{
+			while( this.images[this.displayIndex]?.ready ){
+				const image = this.images[this.displayIndex];
+
+				await this.#tiling_async( image );
+				this.rootElement.appendChild( image.element );
+
+				this.displayIndex++;
+			}
+		} finally{
+			this.displayReady = true;
+
+			if( this.images[this.displayIndex]?.ready ){
+				this.#displayImagesAsync();
+			}
+		}
+	}
+
     async addImagesByDirHandleAsync( dir_handle, gid )
     {
     	let cnt = 0;
 
-    	const gallery_style = getComputedStyle( this.rootElement );
-    	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
+		this.#updateGalleryWidth();
 
-		await this.#findImageFilesAsync( dir_handle, gid );
-		await this.#workerPool( this.images, this.numImages, 10, async ( image ) => {
+		await this.#findImageFilesAsync( this.images, dir_handle, gid );
+		if( ! this.numImages ){
+			this.images.sort( ( a, b ) => {
+				const dir_cmp = a.dirHandle.name.localeCompare( b.dirHandle.name, undefined, {
+					numeric: true,
+					sensitivity: "base"
+				}) ;
+
+				if( dir_cmp !== 0 ) return dir_cmp;
+
+				return a.fileObj.name.localeCompare( b.fileObj.name, undefined, {
+					numeric: true,
+					sensitivity: "base"
+				} );
+			} );
+		}
+
+		await this.#workerPool( this.images, this.numImages, 3, async ( image ) => {
 			image.url      = URL.createObjectURL( image.fileObj );
 			image.thumbKey = JSON.stringify({
 				dirName : dir_handle.name,
@@ -293,11 +321,12 @@ export default class ImageTile extends EventTarget
 
 			image.element          = document.createElement( "img" );
 			image.element.alt      = "";
-			image.element.loading  = "eager";
 			image.element.decoding = "async";
 			image.element.dataset.groupId = gid;
 			image.element.dataset.index   = this.numImages + cnt++;
 			image.element.style.contentVisibility = "auto";
+
+			image.element.height = this.baseHeight;
 
 			//逆参照用
 			image.element.imageTileObj = image;
@@ -307,7 +336,9 @@ export default class ImageTile extends EventTarget
 					image.element.addEventListener( "load", () => {
 						image.realWidth  = image.element.naturalWidth;
 						image.realHeight = image.element.naturalHeight;
-						//this.iocb.observe( image.element );
+						image.ready = true;
+						//image.element.loading = "lazy";
+						this.#displayImagesAsync();
 						resolve();
 					}, { once: true } );
 					image.element.addEventListener( "error", () => {
@@ -325,16 +356,8 @@ export default class ImageTile extends EventTarget
 			}
 		} );
 
-		for( let i = this.numImages; i < this.images.length; i++ ){
-			if( this.images[i].element ){
-				//this.images[i].element.loading  = "lazy";
-				await this.#tiling_async( this.images[i], gallery_width );
-				this.rootElement.appendChild( this.images[i].element );
-			}
-		}
-
 		this.#tiling_finish();
-		//this.#createThumbnailsAsync();
+		this.#createThumbnailsAsync();
 
 		this.numImages += cnt;
     	return cnt;

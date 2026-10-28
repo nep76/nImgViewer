@@ -120,6 +120,13 @@ button:focus {
   	outline-offset: 0;
 }
 
+#gallery {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	padding: 2px;
+}
+
 #gallery img {
 	background-color: #272727;
 	border-radius:8px;
