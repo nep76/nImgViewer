@@ -293,6 +293,7 @@ export default class ImageTile extends EventTarget
 
 			image.element          = document.createElement( "img" );
 			image.element.alt      = "";
+			image.element.loading  = "eager";
 			image.element.decoding = "async";
 			image.element.dataset.groupId = gid;
 			image.element.dataset.index   = this.numImages + cnt++;
@@ -333,11 +334,6 @@ export default class ImageTile extends EventTarget
 		}
 
 		this.#tiling_finish();
-
-		for( let i = this.numImages; i < this.images.length; i++ ){
-			if( this.images[i].element ) this.rootElement.appendChild( this.images[i].element );
-		}
-
 		//this.#createThumbnailsAsync();
 
 		this.numImages += cnt;
