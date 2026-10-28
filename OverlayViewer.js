@@ -1,5 +1,6 @@
 
 export default class OverlayViewer {
+
 	constructor( name )
 	{
 		this.name = name;

@@ -3,7 +3,9 @@
 
 export default class ImageTile extends EventTarget
 {
-    constructor( id )
+	static requiredDbKeys = [ "thumbCache" ];
+
+    constructor( idh, id )
     {
 		super();
 
@@ -25,6 +27,10 @@ export default class ImageTile extends EventTarget
 			rootMargin: "300px 0px"
 		} );
 		*/
+		this.idh = idh;
+
+		this.thumbWorkerReady = true;
+		this.thumbCache = {};
 
         this.rootElement = document.createElement( "div" );
         this.rootElement.id = id;
@@ -48,6 +54,17 @@ export default class ImageTile extends EventTarget
         this.totalLineWidth = 0;
 		this.numImages      = 0;
     }
+
+	async loadThumbsFromDb()
+	{
+		try {
+			await this.idh.loadDataAsync( "thumbCache", ( key, value ) => {
+				this.thumbCache[key] = value;
+			} );
+		} catch( e ){
+			console.error( e );
+		}
+	}
 
 	getRootElement()
 	{
@@ -87,6 +104,8 @@ export default class ImageTile extends EventTarget
     	this.lineEnd++;
 	}
 
+	
+
 	#tiling_finish()
 	{
 		for( let i = this.lineStart; i < this.lineEnd; i++ ){
@@ -117,22 +136,21 @@ export default class ImageTile extends EventTarget
 		return this.numImages;
 	}
 
-	async #workerPool( start_index, maxjobs, cb )
+	async #workerPool( array, start_index, maxjobs, cb )
 	{
 		let cur_idx = start_index;
-		const images = this.images;
 
 		async function worker()
 		{
 			while( 1 ){
 				const i = cur_idx++;
-				if( i >= images.length ) return;
-				await cb( images[i] );
+				if( i >= array.length ) return;
+				await cb( array[i] );
 			}
 		}
 
 		await Promise.all(
-			Array.from( { length: Math.min( maxjobs, images.length ) }, () => worker() )
+			Array.from( { length: Math.min( maxjobs, array.length ) }, () => worker() )
 		);
 	}
 
@@ -153,12 +171,109 @@ export default class ImageTile extends EventTarget
         
     		if( /\.(jpe?g|png)$/i.test( name ) ){
 				this.images.push( {
-					fileHandle: await handle.getFile(),
+					fileObj: await handle.getFile(),
 					gruopId: gid
 				} );
 			}
 		}
 		return cnt;
+	}
+
+	async #createThumbnailsAsync()
+	{
+		if( ! this.thumbWorkerReady ) return;
+
+		this.thumbWorkerReady = false;
+
+		try{
+			let thumbdb = {};
+
+			while( 1 ){
+				let pending = [];
+				let thumbblob;
+
+				for( const image of this.images ){
+					if( image.thumbKey ) pending.push( image );
+				}
+				if( ! pending.length ) break;
+
+				await this.#workerPool( pending, 0, 3, async ( image ) => {
+					const t_base_height = this.baseHeight * 2;
+					const ratio        = t_base_height / image.realHeight;
+
+					if( ratio < 1 ){
+						const target_width  = Math.round( image.realWidth * ratio );
+						const target_height = Math.round( image.realHeight * ratio );
+						let canvas_width    = image.realWidth;
+						let canvas_height   = image.realHeight;
+						let canvas_index    = 0;
+						let source          = image.element;
+
+						const canvas_arr = [
+							{ canvas: document.createElement( "canvas" ), ctx: null	},
+							{ canvas: document.createElement( "canvas" ), ctx: null	}
+						];
+
+						for( let i = 0; i < 2; i++ ){
+							canvas_arr[i].ctx = canvas_arr[i].canvas.getContext( "2d" );
+							canvas_arr[i].ctx.imageSmoothingEnabled = true;
+							canvas_arr[i].ctx.imageSmoothingQuality = "high";
+						}
+
+						await image.element.decode();
+
+						while( ( canvas_height *= 0.5 ) > target_height ){
+							canvas_width *= 0.5
+							canvas_arr[canvas_index].canvas.width  = canvas_width;
+							canvas_arr[canvas_index].canvas.height = canvas_height;
+							canvas_arr[canvas_index].ctx.drawImage(
+								source, 0, 0, canvas_width, canvas_height
+							);
+							source = canvas_arr[canvas_index].canvas;
+							canvas_index = 1 - canvas_index;
+						}
+
+						canvas_arr[canvas_index].canvas.width  = target_width;
+						canvas_arr[canvas_index].canvas.height = target_height;
+						canvas_arr[canvas_index].ctx.drawImage(
+							source, 0, 0, target_width, target_height
+						);
+						
+						thumbblob = await new Promise( ( resolve, reject ) => {
+							canvas_arr[canvas_index].canvas.toBlob( ( blob ) => {
+								if( blob ){
+									resolve( blob );
+								} else{
+									console.error("canvas.toBlob failed", {
+										canvas_width: canvas_width,
+										canvas_height: canvas_height,
+										target_width: target_width,
+										target_height: target_height,
+										url: image.url
+									});
+									reject( new Error( "Failed to create thumbname for " + image.url ) );
+								}
+							}, "image/png", 0.8 );
+						} );
+						
+						image.thumbUrl = URL.createObjectURL( thumbblob );
+					} else{
+						image.thumbUrl = null;
+					}
+
+					thumbdb[image.thumbKey] = thumbblob;
+
+					image.thumbKey    = null;
+					image.element.src = image.thumbUrl ?? image.url;
+
+				} );
+				await this.idh.storeDataAsync( "thumbCache", thumbdb );
+			}
+		} catch( e ){
+			console.error( e );
+		} finally{
+			this.thumbWorkerReady = true;
+		}
 	}
 
     async addImagesByDirHandleAsync( dir_handle, gid )
@@ -169,16 +284,27 @@ export default class ImageTile extends EventTarget
     	const gallery_width = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
 
 		await this.#findImageFilesAsync( dir_handle, gid );
+		await this.#workerPool( this.images, this.numImages, 10, async ( image ) => {
+			image.url      = URL.createObjectURL( image.fileObj );
+			image.thumbKey = JSON.stringify({
+				dirName : dir_handle.name,
+				fileName: image.fileObj.name,
+				size    : image.fileObj.size,
+				lastMod : image.fileObj.lastModified
+			});
+			image.thumbUrl = this.thumbCache[image.thumbKey] ?
+				 URL.createObjectURL( this.thumbCache[image.thumbKey] ) : null; 
+			if( image.thumbUrl ) image.thumbKey = null;
 
-		await this.#workerPool( this.numImages, 10, async ( image ) => {
-			image.url         = URL.createObjectURL( image.fileHandle );
-			image.element     = document.createElement( "img" );
+			image.element          = document.createElement( "img" );
 			image.element.alt      = "";
 			image.element.decoding = "async";
 			image.element.dataset.groupId = gid;
 			image.element.dataset.index   = this.numImages + cnt++;
-
 			image.element.style.contentVisibility = "auto";
+
+			//逆参照用
+			image.element.imageTileObj = image;
 			
 			try{
 				return await new Promise( ( resolve, reject ) => {
@@ -191,7 +317,7 @@ export default class ImageTile extends EventTarget
 					image.element.addEventListener( "error", () => {
 						reject();
 					}, { once: true } );
-					image.element.src = image.url;
+					image.element.src = image.thumbUrl || image.url;
 				} );
 			} catch{
 				URL.revokeObjectURL( image.url );
@@ -213,6 +339,8 @@ export default class ImageTile extends EventTarget
 		this.#tiling_finish();
 		this.numImages += cnt;
 
+		this.#createThumbnailsAsync();
+
     	return cnt;
     }
 
@@ -220,9 +348,9 @@ export default class ImageTile extends EventTarget
     {
         this.rootElement.replaceChildren();
 
-		const imgs = this.rootElement.getElementsByTagName( "img" );
-		for( const img of imgs ) {
-	  		URL.revokeObjectURL( img.src );
+		for( const image of this.images ) {
+	  		URL.revokeObjectURL( image.url );
+			if( image.thumbUrl ) URL.revokeObjectURL( image.thumbUrl );
 		}
 
         this.#init();

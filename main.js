@@ -1,11 +1,14 @@
-import ImageDirStore from "./ImageDirStore.js";
-import OverlayViewer from "./OverlayViewer.js";
+import IndexedDbHash from "./IndexedDbHash.js";
 import ImageTile from "./ImageTile.js";
+import OverlayViewer from "./OverlayViewer.js";
 
-const gImgDir        = new ImageDirStore( "nImgViewer" );
+const gIndexedDbHash = new IndexedDbHash( "nImgViewer",
+	2, [ "dirs", ...ImageTile.requiredDbKeys ]
+);
+const gImageTile     = new ImageTile( gIndexedDbHash, "gallery" );
 const gOverlayViewer = new OverlayViewer( null );
-const gImageTile     = new ImageTile( "gallery" );
 
+let gDirs = {};
 let gAcceptDirHandle = {};
 let gDeniedDirHandle = {};
 
@@ -22,35 +25,41 @@ document.getElementById( "app-name" ).addEventListener( "click", () => {
 
 document.getElementById( "add" ).addEventListener( "click", async () =>
 {
-	const f = document.createDocumentFragment();
 	try{
 		const dir = await window.showDirectoryPicker();
 		if( dir ){
-			const dirs = gImgDir.getDirs();
-			for( const key of Object.keys( dirs ) ){
-			  	if( await dirs[key].dirHandle.isSameEntry( dir ) ) return;
+			for( const key of Object.keys( gDirs ) ){
+			  	if( await gDirs[key].dirHandle.isSameEntry( dir ) ) return;
 			}
 		  
 			const id  = crypto.randomUUID();
 			const cnt = await gImageTile.addImagesByDirHandleAsync( dir, id );
 		  
 			if( cnt ){
-			  	await gImgDir.storeAsync( {
-			    	[id]: {
-			      	dirHandle: dir,
-			    	}
-			  	} );
+				try{
+			  		Object.assign( gDirs,
+						await gIndexedDbHash.storeDataAsync( "dirs", { [id]: { dirHandle: dir } } )
+					);
+				} catch( e ){
+					console.error( e );
+				}
 			  	update_status();
 			}
 		}
 	} catch( e ){
-	  	if( e.name !== "AbortError" ) throw e;
+	  	if( e.name !== "AbortError" ){
+			console.error( e );
+		}
 	}
 });
 
 document.getElementById( "policy-ok" ).addEventListener( "click", () => {
 	document.getElementById( "policy-modal" ).close();
-	localStorage.setItem( "policy-ok", "1" );
+	try{
+		localStorage.setItem( "policy-ok", "1" );
+	} catch( e ){
+		console.error( e );
+	}
 } );
 
 document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) => {
@@ -59,11 +68,16 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 
 	try {
 		gImageTile.clear();
-		await gImgDir.clearAsync();
 		update_status();
+		
 		localStorage.clear();
+		await gIndexedDbHash.clearDbAsync();
+
+		gDirs = {};
+	} catch( e ){
+		console.error( e );
 	} finally{
-		button.disabled = true;
+		button.disabled = false;
 	}
 
 	document.getElementById( "delete-modal" ).close();
@@ -73,7 +87,6 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 	document.getElementById( "rebuild-modal" ).close();
 
 	const desc = document.getElementById( "rebuild-desc" );
-
 	try{
 		for( const key of Object.keys( gDeniedDirHandle ) ){
 			const perm = await gDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
@@ -111,25 +124,31 @@ document.getElementById( "rebuild-abort" ).addEventListener( "click", ( e ) => {
 } );
 
 document.addEventListener( "DOMContentLoaded", async () => {
-	const dirs = await gImgDir.loadAsync();
+	try{
+		gDirs = await gIndexedDbHash.loadDataAsync( "dirs" );
+		gImageTile.loadThumbsFromDb( gIndexedDbHash );
+	} catch( e ){
+		console.error( e );
+		return;
+	}
 
 	gImageTile.addEventListener( "click", ( e ) => {
 		const img = e.target.closest( "img" );
 		if( ! img || ! gImageTile.getRootElement().contains( img ) ) return;
 
-		gOverlayViewer.setUrl( img.src );
+		gOverlayViewer.setUrl( img.imageTileObj.url );
 		gOverlayViewer.show();
 	} );
 	
 	document.body.appendChild( gOverlayViewer.getRootElement() );
 	document.querySelector( "main" ).appendChild( gImageTile.getRootElement() );
 
-	for( const key of Object.keys( dirs ) ){
-		const perm = await dirs[key].dirHandle.queryPermission( { mode: "read" } );
+	for( const key of Object.keys( gDirs ) ){
+		const perm = await gDirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
-			await gImageTile.addImagesByDirHandleAsync( dirs[key].dirHandle, key );
+			await gImageTile.addImagesByDirHandleAsync( gDirs[key].dirHandle, key );
 		} else{
-			gDeniedDirHandle[key] = dirs[key];
+			gDeniedDirHandle[key] = gDirs[key];
 		}
 	}
 
@@ -156,7 +175,11 @@ document.addEventListener( "DOMContentLoaded", async () => {
 
 	observer.observe( gImageTile.getRootElement() );
 
-	if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( dirs ).length ){
-		document.getElementById( "policy-modal" ).showModal();
+	try{
+		if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( gDirs ).length ){
+			document.getElementById( "policy-modal" ).showModal();
+		}
+	} catch( e ){
+		console.error( e );
 	}
 } );
