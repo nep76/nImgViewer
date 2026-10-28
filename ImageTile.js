@@ -265,7 +265,6 @@ export default class ImageTile extends EventTarget
 
 					image.thumbKey    = null;
 					image.element.src = image.thumbUrl ?? image.url;
-
 				} );
 				await this.idh.storeDataAsync( "thumbCache", thumbdb );
 			}
@@ -327,20 +326,24 @@ export default class ImageTile extends EventTarget
 				image.realHeight = 0;
 			}
 		} );
-		
+
 		for( let i = this.numImages; i < this.images.length; i++ ){
 			if( this.images[i].element ){
-				this.images[i].element.loading  = "lazy";
+				//this.images[i].element.loading  = "lazy";
 				await this.#tiling_async( this.images[i], gallery_width );
 				this.rootElement.appendChild( this.images[i].element );
 			}
 		}
 
 		this.#tiling_finish();
-		this.numImages += cnt;
+
+		for( let i = this.numImages; i < this.images.length; i++ ){
+			if( this.images[i].element ) this.rootElement.appendChild( this.images[i].element );
+		}
 
 		this.#createThumbnailsAsync();
 
+		this.numImages += cnt;
     	return cnt;
     }
 
