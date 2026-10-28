@@ -1,5 +1,3 @@
-// まずgetRootElementでDOMを繋げてからつかうこと
-// 画像のサイズ計算ができない
 
 export default class ImageTile extends EventTarget
 {
@@ -90,7 +88,6 @@ export default class ImageTile extends EventTarget
     		for( let i = 0; i < image_cnt; i++ ){
     			this.images[this.lineStart + i].element.width  = ( this.images[this.lineStart + i].realWidth * this.imgsRatio[i] * zoom_ratio ) - 2;
     			this.images[this.lineStart + i].element.height = ( this.images[this.lineStart + i].realHeight * this.imgsRatio[i] * zoom_ratio ) - 2;
-			//	this.images[this.lineStart + i].element.style.containIntrinsicSize = `${this.images[this.lineStart + i].element.width}px ${this.images[this.lineStart + i].element.height}px`;
     		}
         
     		this.imgsRatio = [];
@@ -111,7 +108,6 @@ export default class ImageTile extends EventTarget
 		for( let i = this.lineStart; i < this.lineEnd; i++ ){
     		this.images[i].element.width  = this.images[i].realWidth * ( this.baseHeight / this.images[i].realHeight );
     		this.images[i].element.height = this.baseHeight;
-		//	this.images[i].element.style.containIntrinsicSize = `${this.images[i].element.width}px ${this.images[i].element.height}px`;
 		}
 	}
 
@@ -320,6 +316,7 @@ export default class ImageTile extends EventTarget
 				} );
 			} catch{
 				URL.revokeObjectURL( image.url );
+				if( image.thumbUrl ) URL.revokeObjectURL( image.thumbUrl );
 				image.url        = null;
 				image.element    = null;
 				image.realWidth  = 0;
@@ -341,7 +338,7 @@ export default class ImageTile extends EventTarget
 			if( this.images[i].element ) this.rootElement.appendChild( this.images[i].element );
 		}
 
-		this.#createThumbnailsAsync();
+		//this.#createThumbnailsAsync();
 
 		this.numImages += cnt;
     	return cnt;
