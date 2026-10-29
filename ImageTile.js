@@ -64,7 +64,7 @@ export default class ImageTile extends EventTarget
 		return this.id;
 	}
 
-	async #tiling_async( image )
+	#tiling( image )
 	{
 		let cur_width = 0, cur_ratio = 0
 
@@ -111,7 +111,7 @@ export default class ImageTile extends EventTarget
 		this.#updateGalleryWidth();
 
 		for( const image of this.images ){
-			await this.#tiling_async( image );
+			this.#tiling( image );
 		}
 
 		this.#tiling_finish();
@@ -119,7 +119,7 @@ export default class ImageTile extends EventTarget
 		return this.numImages;
 	}
 
-	async #workerPool( array, start_index, maxjobs, cb )
+	async #workerPoolAsync( array, start_index, maxjobs, cb )
 	{
 		let cur_idx = start_index;
 
@@ -184,7 +184,7 @@ export default class ImageTile extends EventTarget
 				}
 				if( ! pending.length ) break;
 
-				await this.#workerPool( pending, 0, 3, async ( image ) => {
+				await this.#workerPoolAsync( pending, 0, 3, async ( image ) => {
 					const t_base_height = this.baseHeight * 2;
 					const ratio        = t_base_height / image.realHeight;
 
@@ -272,7 +272,7 @@ export default class ImageTile extends EventTarget
 			while( this.images[this.displayIndex]?.ready ){
 				const image = this.images[this.displayIndex];
 
-				await this.#tiling_async( image );
+				this.#tiling( image );
 				this.rootElement.appendChild( image.element );
 
 				this.displayIndex++;
@@ -307,7 +307,7 @@ export default class ImageTile extends EventTarget
 			this.images.push( ...new_images );
 		}
 
-		await this.#workerPool( this.images, this.numImages, 3, async ( image ) => {
+		await this.#workerPoolAsync( this.images, this.numImages, 3, async ( image ) => {
 			const event = new CustomEvent( "it_preloadimage", {
 				detail: {
 					image: image,

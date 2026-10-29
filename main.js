@@ -14,6 +14,8 @@ let gDirs = {};
 let gAcceptDirHandle = {};
 let gDeniedDirHandle = {};
 
+let _dbg = [];
+
 function update_status()
 {
 	const cnt  = gImageTile.getImagesCount();
@@ -23,6 +25,7 @@ function update_status()
 
 document.getElementById( "app-name" ).addEventListener( "click", () => {
 	document.getElementById( "policy-modal" ).showModal();
+	alert( _dbg.toString() );
 } );
 
 document.getElementById( "add" ).addEventListener( "click", async () =>
@@ -153,8 +156,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 	
 	gImageTile.addEventListener( "it_preloadimage", async ( e ) => {
 		gNotification.show( `${e.detail.dir.name}/${e.detail.file.name}` );
-
-		await new Promise(resolve => setTimeout(resolve, 100));
+		_dbg.push( `${performance.now().toFixed(0)}ms` );
 	} );
 
 	for( const key of Object.keys( gDirs ) ){
