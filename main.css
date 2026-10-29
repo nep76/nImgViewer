@@ -136,6 +136,7 @@ header button {
 dialog {
   	color: #ddd;
   	border: 1px solid  #3f6fc4;
+	border-radius: 10px;
 	background-color: #333;
   	scrollbar-color: #888 #333;
 	overscroll-behavior: contain;
@@ -150,7 +151,6 @@ dialog::backdrop {
 dialog.alert {
 	background: #333 url( "./alert.svg" ) 15px 35% no-repeat;
 	background-size: 50px;
-  	border-radius: 10px;
 	padding-left: 80px;
 }
 
