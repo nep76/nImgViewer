@@ -284,7 +284,7 @@ export default class ImageTile extends EventTarget
 
     async addImagesByDirHandleAsync( dir_handle, gid )
     {
-		const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 8 );
+		const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 6 );
     	let cnt = 0;
 
 		this.#updateGalleryWidth();
