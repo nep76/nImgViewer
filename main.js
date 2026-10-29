@@ -1,14 +1,14 @@
 import IndexedDbHash from "./IndexedDbHash.js";
 import ImageTile from "./ImageTile.js";
 import OverlayViewer from "./OverlayViewer.js";
-import UpslideNotification from "./UpslideNotification.js";
+import ToastNotification from "./ToastNotification.js";
 
 const gIndexedDbHash = new IndexedDbHash( "nImgViewer",
 	2, [ "dirs", ...ImageTile.requiredDbKeys ]
 );
 const gImageTile     = new ImageTile( gIndexedDbHash, "gallery" );
 const gOverlayViewer = new OverlayViewer( null );
-const gNotification  = new UpslideNotification();
+const gNotification  = new ToastNotification();
 
 let gDirs = {};
 let gAcceptDirHandle = {};

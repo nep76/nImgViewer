@@ -1,5 +1,5 @@
 
-export default class UpslideNotification {
+export default class ToastNotification {
 
     constructor()
     {
@@ -7,20 +7,20 @@ export default class UpslideNotification {
 		this.promiseResolve = null;
 
 		this.html    = document.createRange().createContextualFragment( `
-			<div id="UpslideNotification" class="UpslideNotification-hide" hidden>
-				<p id="UpslideNotification-content"></p>
-				<button id="UpslideNotification-ok" hidden>OK</button>
+			<div id="ToastNotification" class="ToastNotification-hide" hidden>
+				<p id="ToastNotification-content"></p>
+				<button id="ToastNotification-ok" hidden>OK</button>
 			</div>
 		` );
 
 		this.domTree = {
 			root:    this.html.firstElementChild,
-			content: this.html.getElementById( "UpslideNotification-content" ),
-			ok     : this.html.getElementById( "UpslideNotification-ok" )
+			content: this.html.getElementById( "ToastNotification-content" ),
+			ok     : this.html.getElementById( "ToastNotification-ok" )
 		};
 
 		this.domTree.root.addEventListener( "transitionend", ( e ) => {
-			if( e.currentTarget.classList.contains( "UpslideNotification-hide" ) ){
+			if( e.currentTarget.classList.contains( "ToastNotification-hide" ) ){
 				e.currentTarget.hidden = true;
 			}
 		} );
@@ -36,7 +36,7 @@ export default class UpslideNotification {
 
 	#close()
 	{
-		this.domTree.root.classList.replace( "UpslideNotification-show", "UpslideNotification-hide" );
+		this.domTree.root.classList.replace( "ToastNotification-show", "ToastNotification-hide" );
 		this.timerId = null;
 	}
 
@@ -67,7 +67,7 @@ export default class UpslideNotification {
 		
 		requestAnimationFrame( () => {
 			requestAnimationFrame( () => {
-				this.domTree.root.classList.replace( "UpslideNotification-hide", "UpslideNotification-show" );
+				this.domTree.root.classList.replace( "ToastNotification-hide", "ToastNotification-show" );
 			} );
 		} );
 

@@ -1,4 +1,4 @@
-#UpslideNotification {
+#ToastNotification {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -16,22 +16,22 @@
     transition: transform 0.3s ease;
 }
 
-.UpslideNotification-hide {
+.ToastNotification-hide {
     transform: translateY(100%) translateX(-50%);
 }
 
-.UpslideNotification-show {
+.ToastNotification-show {
     transform: translateY(0) translateX(-50%);
 }
 
-#UpslideNotification-content {
+#ToastNotification-content {
     margin: 0;
     flex: 1;
     font-size: smaller;
     color: #aaa;
 }
 
-#UpslideNotification-ok {
+#ToastNotification-ok {
     height: auto;
     width: auto;
     font-size: smaller;
