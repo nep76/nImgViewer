@@ -185,7 +185,6 @@ export default class OverlayViewer {
 	show()
 	{
 	  	this.root.showModal();
-		this.root.style.display = "flex";
 		
 		requestAnimationFrame( () => {
 			this.#updateFocusRatio( null, null );
@@ -195,7 +194,6 @@ export default class OverlayViewer {
 	hide()
 	{
 	  	this.root.close();
-		this.root.style.display = "none";
 	}
 
 	setUrl( url )

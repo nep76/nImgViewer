@@ -7,12 +7,11 @@
 	<link rel="stylesheet" href="./OverlayViewer.css">
 	<link rel="stylesheet" href="./ToastNotification.css">
 	<link rel="stylesheet" href="./main.css">
+	<script type="module" src="./main.js"></script>
 	<title>nImgViewer</title>
 </head>
 
-<body>
-	<script type="module" src="./main.js"></script>
-	
+<body>	
 	<header>
 		<h1 id="app-name">nImgViewer</h1>
 		<button id="add" title="フォルダを追加" aria-label="フォルダを追加">＋</button>
@@ -49,7 +48,7 @@
 		<button id="rebuild-ok" autofocus>承認して再表示</button> <button id="rebuild-abort">中断</button>
 	</dialog>
 
-	<dialog id="delete-modal">
+	<dialog id="delete-modal" class="alert">
 		<p>画像一覧とフォルダの登録を削除します。<br>この操作は取り消せません。</p>
 		<button id="delete-ok">削除</button> <button commandfor="delete-modal" command="close" autofocus>キャンセル</button>
 	</dialog>

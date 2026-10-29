@@ -115,8 +115,6 @@ export default class ImageTile extends EventTarget
 		}
 
 		this.#tiling_finish();
-
-		return this.numImages;
 	}
 
 	async #workerPoolAsync( array, start_index, maxjobs, cb )
@@ -359,7 +357,6 @@ export default class ImageTile extends EventTarget
 						image.realHeight = image.element.naturalHeight;
 						image.ready = true;
 						this.rootElement.dispatchEvent( event );
-						//image.element.loading = "lazy";
 						this.#displayImagesAsync();
 						resolve();
 					}, { once: true } );

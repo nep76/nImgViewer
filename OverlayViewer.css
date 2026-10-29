@@ -4,15 +4,19 @@ dialog#OverlayViewer {
   	background: #333;
   	border-radius: 10px;
   	scrollbar-color: #888 #333;
+	overscroll-behavior: contain;
   	text-align: center;    
     overflow: visible !important;
     position: fixed;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding: 0 16px;
     width: 95vw;
     height: 95vh;
     flex-direction: column;
 	gap: 2px;
+}
+
+dialog#OverlayViewer:open {
+	display: flex;
 }
 
 dialog#OverlayViewer::backdrop {
@@ -48,7 +52,6 @@ dialog#OverlayViewer button:focus {
 dialog#OverlayViewer #OverlayViewer-ctrl {
     flex: 0 0 42px;
 	width: 100%;
-	max-width: 400px;
 	border-radius: 10px;
 	background-color: #444;
 	margin-left: auto;
@@ -61,6 +64,33 @@ dialog#OverlayViewer #OverlayViewer-ctrl {
 
 dialog#OverlayViewer #OverlayViewer-ctrl label {
     display: none;
+}
+
+dialog#OverlayViewer #OverlayViewer-ctrl input[type="checkbox"] {
+	appearance: none;
+	margin: 2px;
+	background-color: #444;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 20px;
+	border-radius: 10px;
+	width: 40px;
+	height: 40px;
+}
+dialog#OverlayViewer #OverlayViewer-ctrl input[type="checkbox"]:checked {
+	background-color: #666 !important;
+}
+dialog#OverlayViewer #OverlayViewer-ctrl input[type="checkbox"]:hover {
+	background-color: #3f6fc4;
+}
+dialog#OverlayViewer #OverlayViewer-grayscale {
+	background-image: url( "./grayscale.svg" );
+}
+dialog#OverlayViewer #OverlayViewer-flip-x {
+	background-image: url( "./flip-x.svg" );
+}
+dialog#OverlayViewer #OverlayViewer-flip-y {
+	background-image: url( "./flip-y.svg" );
 }
 
 dialog#OverlayViewer #OverlayViewer-scrl {
@@ -81,7 +111,7 @@ dialog#OverlayViewer #OverlayViewer-image {
 dialog#OverlayViewer #OverlayViewer-zoom {
     flex: 1;
 	min-width: 0;
-	vertical-align: bottom;;
+	vertical-align: bottom;
 	cursor: pointer;
 }
 

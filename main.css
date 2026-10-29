@@ -10,6 +10,10 @@ html {
 	scrollbar-gutter: stable;
 }
 
+html:has(dialog[open]) {
+	overflow: clip;
+}
+
 body {
 	font-family: -apple-system,BlinkMacSystemFont,segoe ui,Roboto,Oxygen,Ubuntu,Cantarell,open sans,helvetica neue,sans-serif;
  	margin: 0;
@@ -72,7 +76,6 @@ footer #invoke-policy-modal:hover {
 	color: #bbb;
 }
 
-
 h1 {
 	padding: 0;
 	margin: 0;
@@ -112,16 +115,59 @@ button {
 }
 
 button:hover {
-  	background: #3f6fc4 !important;
+  	background-color: #3f6fc4 !important;
   	color: white;
 }
 
 button:focus {
 	border: 2px solid  #3f6fc4;
-	background: #555;
+	background-color: #555;
 	color: white;
   	outline: 0;
   	outline-offset: 0;
+}
+
+header button {
+	font-size: 0;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+dialog {
+  	color: #ddd;
+  	border: 1px solid  #3f6fc4;
+	background-color: #333;
+  	scrollbar-color: #888 #333;
+	overscroll-behavior: contain;
+	min-width: 30%;
+	text-align: center;
+}
+
+dialog::backdrop {
+  	background-color: rgba( 0, 0, 0, 0.6 );
+}
+
+dialog.alert {
+	background: #333 url( "./alert.svg" ) 15px 35% no-repeat;
+	background-size: 50px;
+  	border-radius: 10px;
+	padding-left: 80px;
+}
+
+dialog.alert p {
+	text-align: left;
+}
+
+dialog.alert button {
+	transform: translateX(-32px);
+}
+
+#add {
+	background-image: url( "./folderopen.svg" );
+}
+
+#reset {
+	background-image: url( "./reset.svg" );
 }
 
 #gallery {
@@ -143,28 +189,10 @@ button:focus {
   	font-size: 14px;
 }
 
-dialog {
-  	color: #ddd;
-  	border: 1px solid  #3f6fc4;
-  	background: #333;
-  	border-radius: 10px;
-  	scrollbar-color: #888 #333;
-  	text-align: center;
-	min-width: 30%;
-}
-
-dialog::backdrop {
-  	background-color: rgba( 0, 0, 0, 0.6 );
-}
-
 span#status {
  	font-size: 13px;
   	color: #bbb;
 	font-family: Verdana, Geneva, Tahoma, sans-serif;
-}
-
-button#add {
-	font-size: 20px;
 }
 
 dialog#policy-modal {
@@ -173,6 +201,8 @@ dialog#policy-modal {
 	text-align: left;
 	flex-direction: column;
 	gap: 7px;
+	background-image: none;
+	padding-left: 16px;
 }
 
 dialog#policy-modal:open {
