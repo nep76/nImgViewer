@@ -24,8 +24,8 @@ function update_status()
 }
 
 document.getElementById( "app-name" ).addEventListener( "click", () => {
+	document.getElementById( "policy-content ").textContent = _dbg.join( ", " );
 	document.getElementById( "policy-modal" ).showModal();
-	alert( _dbg.toString() );
 } );
 
 document.getElementById( "add" ).addEventListener( "click", async () =>
