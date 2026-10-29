@@ -151,8 +151,10 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		gOverlayViewer.show();
 	} );
 	
-	gImageTile.addEventListener( "it_preloadimage", ( e ) => {
+	gImageTile.addEventListener( "it_preloadimage", async ( e ) => {
 		gNotification.show( `${e.detail.dir.name}/${e.detail.file.name}` );
+
+		await new Promise(resolve => setTimeout(resolve, 100));
 	} );
 
 	for( const key of Object.keys( gDirs ) ){
