@@ -95,6 +95,8 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 
 	const desc = document.getElementById( "rebuild-desc" );
 	try{
+		_dbg.push( `requestPerm:${performance.now().toFixed(0)}ms` );
+
 		for( const key of Object.keys( gDeniedDirHandle ) ){
 			const perm = await gDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
 			if( perm !== "granted" ){
@@ -105,6 +107,7 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 			delete gDeniedDirHandle[key];
 		}
 
+		_dbg.push( `startaddimage:${performance.now().toFixed(0)}ms` );
 		for( const key of Object.keys( gAcceptDirHandle ) ){
 			await gImageTile.addImagesByDirHandleAsync( gAcceptDirHandle[key].dirHandle, key );
 			delete gAcceptDirHandle[key];
