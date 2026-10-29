@@ -1,12 +1,14 @@
 import IndexedDbHash from "./IndexedDbHash.js";
 import ImageTile from "./ImageTile.js";
 import OverlayViewer from "./OverlayViewer.js";
+import UpslideNotification from "./UpslideNotification.js";
 
 const gIndexedDbHash = new IndexedDbHash( "nImgViewer",
 	2, [ "dirs", ...ImageTile.requiredDbKeys ]
 );
 const gImageTile     = new ImageTile( gIndexedDbHash, "gallery" );
 const gOverlayViewer = new OverlayViewer( null );
+const gNotification  = new UpslideNotification();
 
 let gDirs = {};
 let gAcceptDirHandle = {};
@@ -110,25 +112,34 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 		if( cnt_denied ){
 			desc.textContent = `あと ${cnt_denied} フォルダに対して許可が必要です。`;
 			document.getElementById( "rebuild-modal" ).showModal();
+		} else{
+			gImageTile.cleanupThumbnailsAsync();
 		}
 	}
 
 	gDeniedDirHandle = {};
 } );
 
-document.getElementById( "rebuild-abort" ).addEventListener( "click", ( e ) => {
+document.getElementById( "rebuild-abort" ).addEventListener( "click", async ( e ) => {
 	document.getElementById( "rebuild-modal" ).close();
 	gDeniedDirHandle = {};
 
 	update_status();
+
+	gNotification.show( "アクセスが拒否されたため処理を中断しました。再試行するにはページを再読み込みしてください。", true );
 } );
 
 document.addEventListener( "DOMContentLoaded", async () => {
+	document.body.appendChild( gOverlayViewer.getRootElement() );
+	document.body.appendChild( gNotification.getRootElement() );
+	document.querySelector( "main" ).appendChild( gImageTile.getRootElement() );
+
 	try{
 		gDirs = await gIndexedDbHash.loadDataAsync( "dirs" );
 		gImageTile.loadThumbsFromDb( gIndexedDbHash );
 	} catch( e ){
 		console.error( e );
+		gNotification.show( "ブラウザのデータストレージの読み込みに失敗しました。" );
 		return;
 	}
 
@@ -140,8 +151,9 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		gOverlayViewer.show();
 	} );
 	
-	document.body.appendChild( gOverlayViewer.getRootElement() );
-	document.querySelector( "main" ).appendChild( gImageTile.getRootElement() );
+	gImageTile.addEventListener( "it_preloadimage", ( e ) => {
+		gNotification.show( `${e.detail.dir.name}/${e.detail.file.name}` );
+	} );
 
 	for( const key of Object.keys( gDirs ) ){
 		const perm = await gDirs[key].dirHandle.queryPermission( { mode: "read" } );
@@ -156,6 +168,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		document.getElementById( "rebuild-modal" ).showModal();
 	} else{
 		update_status();
+		gImageTile.cleanupThumbnailsAsync();
 	}
 
 	const observer = new ResizeObserver( ( () => {

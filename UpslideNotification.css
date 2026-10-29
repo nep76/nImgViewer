@@ -1,0 +1,42 @@
+#UpslideNotification {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 13px;
+    width: max-content;
+
+    background-color: #333;
+    border-radius: 10px 10px 0 0;
+    box-shadow: 2px 0 6px rgba( 0, 0, 0, 0.3 ); 
+
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transition: transform 0.3s ease;
+}
+
+.UpslideNotification-hide {
+    transform: translateY(100%) translateX(-50%);
+}
+
+.UpslideNotification-show {
+    transform: translateY(0) translateX(-50%);
+}
+
+#UpslideNotification-content {
+    margin: 0;
+    flex: 1;
+    font-size: smaller;
+    color: #aaa;
+}
+
+#UpslideNotification-ok {
+    height: auto;
+    width: auto;
+    font-size: smaller;
+    padding: 5px 10px;
+    vertical-align: middle;
+    margin-left: 10px;
+}
+

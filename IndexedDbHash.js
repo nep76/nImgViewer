@@ -85,7 +85,7 @@ export default class IndexedDbHash {
 		return dic;
 	}
 
-	async removeDataAsync( key, ...ids )
+	async removeDataAsync( key, id_arr )
 	{
 		const db = await this.#open_db( key );
 
@@ -94,7 +94,7 @@ export default class IndexedDbHash {
 			  	const tx    = db.transaction( key, "readwrite" );
 			  	const store = tx.objectStore( key );
 
-			  	ids.forEach( id => store.delete( id ) );
+			  	id_arr.forEach( id => store.delete( id ) );
 
 			  	tx.oncomplete = resolve;
 			  	tx.onerror = () => reject( tx.error );

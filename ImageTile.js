@@ -8,7 +8,6 @@ export default class ImageTile extends EventTarget
 		super();
 
 		this.idh = idh;
-
 		this.galleryWidth = 0;
 
 		this.displayReady = true;
@@ -45,7 +44,10 @@ export default class ImageTile extends EventTarget
 	{
 		try {
 			await this.idh.loadDataAsync( "thumbCache", ( key, value ) => {
-				this.thumbCache[key] = value;
+				this.thumbCache[key] = {
+					use : false,
+					blob: value
+				};
 			} );
 		} catch( e ){
 			console.error( e );
@@ -301,11 +303,19 @@ export default class ImageTile extends EventTarget
 					sensitivity: "base"
 				} );
 			} );
-			
+
 			this.images.push( ...new_images );
 		}
 
 		await this.#workerPool( this.images, this.numImages, 3, async ( image ) => {
+			const event = new CustomEvent( "it_preloadimage", {
+				detail: {
+					image: image,
+					dir: dir_handle,
+					file: image.fileObj
+				}
+			} );
+
 			image.url      = URL.createObjectURL( image.fileObj );
 			image.thumbKey = JSON.stringify({
 				dirName : dir_handle.name,
@@ -313,9 +323,14 @@ export default class ImageTile extends EventTarget
 				size    : image.fileObj.size,
 				lastMod : image.fileObj.lastModified
 			});
-			image.thumbUrl = this.thumbCache[image.thumbKey] ?
-				 URL.createObjectURL( this.thumbCache[image.thumbKey] ) : null; 
-			if( image.thumbUrl ) image.thumbKey = null;
+
+			if( this.thumbCache[image.thumbKey] ){
+				this.thumbCache[image.thumbKey].use = true;
+				image.thumbUrl = URL.createObjectURL( this.thumbCache[image.thumbKey].blob );
+				image.thumbKey = null;
+			} else{
+				image.thumbUrl = null;
+			}
 
 			image.element          = document.createElement( "img" );
 			image.element.alt      = "";
@@ -328,13 +343,23 @@ export default class ImageTile extends EventTarget
 
 			//逆参照用
 			image.element.imageTileObj = image;
+
+			this.rootElement.dispatchEvent( event );
 			
 			try{
 				return await new Promise( ( resolve, reject ) => {
 					image.element.addEventListener( "load", () => {
+						const event = new CustomEvent( "it_loadimage", {
+							detail: {
+								image: image,
+								dir: dir_handle,
+								file: image.fileObj
+							}
+						} );
 						image.realWidth  = image.element.naturalWidth;
 						image.realHeight = image.element.naturalHeight;
 						image.ready = true;
+						this.rootElement.dispatchEvent( event );
 						//image.element.loading = "lazy";
 						this.#displayImagesAsync();
 						resolve();
@@ -360,6 +385,20 @@ export default class ImageTile extends EventTarget
 		this.numImages += cnt;
     	return cnt;
     }
+
+	async cleanupThumbnailsAsync()
+	{
+		let trash = [];
+
+		for( const key of Object.keys( this.thumbCache ) ){
+			if( ! this.thumbCache[key].use ) trash.push( key );
+		}
+
+		await this.idh.removeDataAsync( "thumbCache", trash );
+		for( const key of trash ){
+			delete this.thumbCache[key];
+		}
+	}
 
     clear()
     {
