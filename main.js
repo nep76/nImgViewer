@@ -14,8 +14,6 @@ let gDirs = {};
 let gAcceptDirHandle = {};
 let gDeniedDirHandle = {};
 
-let _dbg = [];
-
 function update_status()
 {
 	const cnt  = gImageTile.getImagesCount();
@@ -24,7 +22,6 @@ function update_status()
 }
 
 document.getElementById( "app-name" ).addEventListener( "click", () => {
-	document.getElementById( "policy-content" ).textContent = _dbg.join( ", " );
 	document.getElementById( "policy-modal" ).showModal();
 } );
 
@@ -91,12 +88,8 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) => {
 	document.getElementById( "rebuild-modal" ).close();
 
-	_dbg.push( `Start:${performance.now().toFixed(0)}ms` );
-
 	const desc = document.getElementById( "rebuild-desc" );
 	try{
-		_dbg.push( `requestPerm:${performance.now().toFixed(0)}ms` );
-
 		for( const key of Object.keys( gDeniedDirHandle ) ){
 			const perm = await gDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
 			if( perm !== "granted" ){
@@ -107,7 +100,6 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) =
 			delete gDeniedDirHandle[key];
 		}
 
-		_dbg.push( `startaddimage:${performance.now().toFixed(0)}ms` );
 		for( const key of Object.keys( gAcceptDirHandle ) ){
 			await gImageTile.addImagesByDirHandleAsync( gAcceptDirHandle[key].dirHandle, key );
 			delete gAcceptDirHandle[key];
@@ -161,7 +153,6 @@ document.addEventListener( "DOMContentLoaded", async () => {
 	
 	gImageTile.addEventListener( "it_preloadimage", async ( e ) => {
 		gNotification.show( `${e.detail.dir.name}/${e.detail.file.name}` );
-		_dbg.push( `${performance.now().toFixed(0)}ms` );
 	} );
 
 	for( const key of Object.keys( gDirs ) ){

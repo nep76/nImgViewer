@@ -139,26 +139,22 @@ export default class ImageTile extends EventTarget
 
 	async #findImageFilesAsync( array, dir_handle, gid ){
 		let cnt = 0;
-		
+		const regex = /\.(jpe?g|png)$/i;
+
 		for await ( const [name, handle] of dir_handle.entries() ){
     		if( handle.kind === "directory" ){
     		  	cnt += await this.#findImageFilesAsync( array, handle, gid );
-    		  	continue
+    		  	continue;
     		} else if( handle.kind != "file" ){
     		  	continue;
     		}
 
-			const ev_dir_open = new CustomEvent( "OpenDirectory", {
-				detail: { handle: handle }
-			} );
-			this.dispatchEvent( ev_dir_open );
-        
-    		if( /\.(jpe?g|png)$/i.test( name ) ){
+    		if( regex.test( name ) ){
 				array.push( {
-					dirHandle: dir_handle,
-					fileObj  : await handle.getFile(),
-					gruopId  : gid,
-					ready    : false
+					dirHandle : dir_handle,
+					fileHandle: handle,
+					gruopId   : gid,
+					ready     : false
 				} );
 			}
 		}
@@ -184,7 +180,7 @@ export default class ImageTile extends EventTarget
 				}
 				if( ! pending.length ) break;
 
-				await this.#workerPoolAsync( pending, 0, 3, async ( image ) => {
+				await this.#workerPoolAsync( pending, 0, 4, async ( image ) => {
 					const t_base_height = this.baseHeight * 2;
 					const ratio        = t_base_height / image.realHeight;
 
@@ -288,6 +284,7 @@ export default class ImageTile extends EventTarget
 
     async addImagesByDirHandleAsync( dir_handle, gid )
     {
+		const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 8 );
     	let cnt = 0;
 
 		this.#updateGalleryWidth();
@@ -298,7 +295,7 @@ export default class ImageTile extends EventTarget
 			await this.#findImageFilesAsync( new_images, dir_handle, gid );
 
 			new_images.sort( ( a, b ) => {
-				return a.fileObj.name.localeCompare( b.fileObj.name, undefined, {
+				return a.fileHandle.name.localeCompare( b.fileHandle.name, undefined, {
 					numeric: true,
 					sensitivity: "base"
 				} );
@@ -307,7 +304,9 @@ export default class ImageTile extends EventTarget
 			this.images.push( ...new_images );
 		}
 
-		await this.#workerPoolAsync( this.images, this.numImages, 3, async ( image ) => {
+		await this.#workerPoolAsync( this.images, this.numImages, maxjobs, async ( image ) => {
+			image.fileObj = await image.fileHandle.getFile();
+
 			const event = new CustomEvent( "it_preloadimage", {
 				detail: {
 					image: image,
