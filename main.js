@@ -91,6 +91,8 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) => {
 	document.getElementById( "rebuild-modal" ).close();
 
+	_dbg.push( `Start:${performance.now().toFixed(0)}ms` );
+
 	const desc = document.getElementById( "rebuild-desc" );
 	try{
 		for( const key of Object.keys( gDeniedDirHandle ) ){
