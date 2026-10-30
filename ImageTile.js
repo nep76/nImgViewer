@@ -45,8 +45,8 @@ export default class ImageTile extends EventTarget
 		try {
 			await this.idh.loadDataAsync( "thumbCache", ( key, value ) => {
 				this.thumbCache[key] = {
-					use : false,
-					blob: value
+					use  : false,
+					data : value
 				};
 			} );
 		} catch( e ){
@@ -161,6 +161,35 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
+	async #createThumbnailBlobAsync( image )
+	{
+		const ratio  = ( this.baseHeight * 2 ) / image.element.naturalHeight;
+
+		if( ratio < 1 ){
+			const canvas = document.createElement( "canvas" );
+			const ctx    = canvas.getContext( "2d" );
+
+			await image.element.decode();
+
+			canvas.width  = image.element.naturalWidth * ratio;
+			canvas.height = image.element.naturalHeight * ratio;
+
+			ctx.drawImage( image.element, 0, 0, canvas.width, canvas.height );
+
+			const blob = await new Promise( ( resolve, reject ) => {
+				canvas.toBlob( ( b ) => {
+					if( b ){
+						resolve( b );
+					} else{
+						reject( new Error( `Failed to create thumbname for ${image.url}` ) );
+					}
+				}, "image/png", 0.8 );
+			} );
+
+			return blob;
+		}
+	}
+
 	async #createThumbnailsAsync()
 	{
 		if( ! this.thumbWorkerReady ) return;
@@ -168,20 +197,22 @@ export default class ImageTile extends EventTarget
 		this.thumbWorkerReady = false;
 
 		try{
-			const thumbdb = {};
+			let thumbdb = {};
 
 			while( true ){
 				const pending = [];
-				let   thumbblob;
+				let   blob;
 
 				for( const image of this.images ){
-					if( image.thumbKey ) pending.push( image );
+					if( image.thumbKey && this.thumbCache[image.thumbKey].data.phase !== "complete" )
+						pending.push( image );
 				}
 				if( ! pending.length ) break;
 
 				await this.#workerPoolAsync( pending, 0, 4, async ( image ) => {
+					const oldthumburl   = image.thumbUrl;
 					const t_base_height = this.baseHeight * 2;
-					const ratio        = t_base_height / image.realHeight;
+					const ratio         = t_base_height / image.realHeight;
 
 					if( ratio < 1 ){
 						const target_width  = Math.round( image.realWidth * ratio );
@@ -221,10 +252,10 @@ export default class ImageTile extends EventTarget
 							source, 0, 0, target_width, target_height
 						);
 						
-						thumbblob = await new Promise( ( resolve, reject ) => {
-							canvas_arr[canvas_index].canvas.toBlob( ( blob ) => {
-								if( blob ){
-									resolve( blob );
+						blob = await new Promise( ( resolve, reject ) => {
+							canvas_arr[canvas_index].canvas.toBlob( ( b ) => {
+								if( b ){
+									resolve( b );
 								} else{
 									console.error("canvas.toBlob failed", {
 										canvas_width: canvas_width,
@@ -238,17 +269,29 @@ export default class ImageTile extends EventTarget
 							}, "image/png", 0.8 );
 						} );
 						
-						image.thumbUrl = URL.createObjectURL( thumbblob );
+						image.thumbUrl = URL.createObjectURL( blob );
 					} else{
 						image.thumbUrl = null;
 					}
 
-					thumbdb[image.thumbKey] = thumbblob;
+					thumbdb[image.thumbKey] = {
+						phase: "complete",
+						blob : blob
+					};
 
 					image.thumbKey    = null;
 					image.element.src = image.thumbUrl ?? image.url;
+
+					if( oldthumburl ) URL.revokeObjectURL( oldthumburl );
+
+					if( Object.keys( thumbdb ).length >= 300 ){
+						await this.idh.storeDataAsync( "thumbCache", thumbdb );
+						thumbdb = {};
+					}
 				} );
-				await this.idh.storeDataAsync( "thumbCache", thumbdb );
+				if( Object.keys( thumbdb ).length ){
+					await this.idh.storeDataAsync( "thumbCache", thumbdb );
+				}
 			}
 		} catch( e ){
 			console.error( e );
@@ -284,6 +327,7 @@ export default class ImageTile extends EventTarget
     async addImagesByDirHandleAsync( dir_handle, gid )
     {
 		const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 6 );
+		let thumbdb = {};
     	let cnt = 0;
 
 		this.#updateGalleryWidth();
@@ -322,17 +366,6 @@ export default class ImageTile extends EventTarget
 				lastMod : image.fileObj.lastModified
 			});
 
-			if( this.thumbCache[image.thumbKey] ){
-				this.thumbCache[image.thumbKey].use = true;
-				image.thumbUrl =
-					this.thumbCache[image.thumbKey].blob ?
-					URL.createObjectURL( this.thumbCache[image.thumbKey].blob ) :
-					image.url;
-				image.thumbKey = null;
-			} else{
-				image.thumbUrl = null;
-			}
-
 			image.element          = document.createElement( "img" );
 			image.element.alt      = "";
 			image.element.decoding = "async";
@@ -349,7 +382,7 @@ export default class ImageTile extends EventTarget
 			
 			try{
 				return await new Promise( ( resolve, reject ) => {
-					image.element.addEventListener( "load", () => {
+					image.element.addEventListener( "load", async () => {
 						const event = new CustomEvent( "it_loadimage", {
 							detail: {
 								image: image,
@@ -359,9 +392,33 @@ export default class ImageTile extends EventTarget
 						} );
 						image.realWidth  = image.element.naturalWidth;
 						image.realHeight = image.element.naturalHeight;
+
+						let blob;
+						if( this.thumbCache[image.thumbKey] ){
+							blob = this.thumbCache[image.thumbKey].data.blob;
+						} else{
+							blob = await this.#createThumbnailBlobAsync( image );
+							thumbdb[image.thumbKey] = {
+								phase: "temporary",
+								blob : blob
+							};
+							this.thumbCache[image.thumbKey] = {
+								use: true,
+								data: thumbdb[image.thumbKey]
+							};
+						}
+						image.thumbUrl = blob ? URL.createObjectURL( blob ) : null;
+						image.element.src = image.thumbUrl ?? image.url;
 						image.ready = true;
+
 						this.rootElement.dispatchEvent( event );
 						this.#displayImagesAsync();
+
+						if( Object.keys( thumbdb ).length >= 300 ){
+							await this.idh.storeDataAsync( "thumbCache", thumbdb );
+							thumbdb = {};
+						}
+
 						resolve();
 					}, { once: true } );
 					image.element.addEventListener( "error", () => {
@@ -379,6 +436,8 @@ export default class ImageTile extends EventTarget
 			}
 		} );
 
+		if( Object.keys( thumbdb ).length ) await this.idh.storeDataAsync( "thumbCache", thumbdb );
+		
 		this.#tiling_finish();
 		this.#createThumbnailsAsync();
 

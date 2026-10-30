@@ -43,18 +43,18 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 			}
 		  
 			const id  = crypto.randomUUID();
-			const cnt = await mImageTile.addImagesByDirHandleAsync( dir, id );
-		  
-			if( cnt ){
-				try{
-			  		Object.assign( mDirs,
-						await mIndexedDbHash.storeDataAsync( "dirs", { [id]: { dirHandle: dir } } )
-					);
-				} catch( e ){
-					console.error( e );
-				}
-			  	update_status();
+
+			try{
+				Object.assign( mDirs,
+					await mIndexedDbHash.storeDataAsync( "dirs", { [id]: { dirHandle: dir } } )
+				);
+			} catch( e ){
+				console.error( e );
 			}
+
+			await mImageTile.addImagesByDirHandleAsync( dir, id );
+			
+			update_status();
 		}
 	} catch( e ){
 	  	if( e.name !== "AbortError" ){
