@@ -284,7 +284,7 @@ export default class ImageTile extends EventTarget
 
 					if( oldthumburl ) URL.revokeObjectURL( oldthumburl );
 
-					if( Object.keys( thumbdb ).length >= 300 ){
+					if( Object.keys( thumbdb ).length >= 30 ){
 						await this.idh.storeDataAsync( "thumbCache", thumbdb );
 						thumbdb = {};
 					}
@@ -414,7 +414,7 @@ export default class ImageTile extends EventTarget
 						this.rootElement.dispatchEvent( event );
 						this.#displayImagesAsync();
 
-						if( Object.keys( thumbdb ).length >= 300 ){
+						if( Object.keys( thumbdb ).length >= 30 ){
 							await this.idh.storeDataAsync( "thumbCache", thumbdb );
 							thumbdb = {};
 						}
