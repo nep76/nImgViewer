@@ -10,6 +10,12 @@ const mImageTile     = new ImageTile( mIndexedDbHash, "gallery" );
 const mOverlayViewer = new OverlayViewer( null );
 const mNotification  = new ToastNotification();
 
+const mReCalc = {
+	abortCtrl  : null,
+	lastPromise: null,
+	pending    : false
+};
+
 let mDirs = {};
 let mDeniedDirHandle = {};
 
@@ -180,11 +186,37 @@ document.addEventListener( "DOMContentLoaded", async () => {
 
 		return async ( entries ) => {
 			for( const e of entries ){
-				if( e.target !== mImageTile.getRootElement() || e.contentRect.width === prev_width ) break;
-				
-				prev_width = e.contentRect.width;
+				if(
+					e.target !== mImageTile.getRootElement() ||
+					e.contentRect.width === prev_width       ||
+					mReCalc.pending
+				) break;
 
-				await mImageTile.reCalcTilingAsync();
+				prev_width = e.contentRect.width;
+				
+				if( ! mReCalc.lastPromise ){
+					mReCalc.abortCtrl   = new AbortController();
+					mReCalc.lastPromise = mImageTile.reCalcTilingAsync( mReCalc.abortCtrl.signal );
+				} else if( ! mReCalc.pending ){
+					mReCalc.pending = true;
+					mReCalc.abortCtrl.abort();
+					
+					await mReCalc.lastPromise;
+
+					mReCalc.abortCtrl   = new AbortController();
+					mReCalc.lastPromise = mImageTile.reCalcTilingAsync( mReCalc.abortCtrl.signal );
+					mReCalc.pending     = false;
+				}
+
+				const current_promise = mReCalc.lastPromise;
+
+				mReCalc.lastPromise.finally( () => {
+					if( mReCalc.lastPromise !== current_promise ) return;
+
+					mReCalc.abortCtrl   = null;
+					mReCalc.lastPromise = null;
+					mReCalc.pending     = false;
+				}) ;
 				break;
 			}
 		}

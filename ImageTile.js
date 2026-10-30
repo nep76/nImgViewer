@@ -99,7 +99,7 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
-	async reCalcTilingAsync()
+	async reCalcTilingAsync( signal )
 	{
 		if( ! this.numImages ) return;
 
@@ -110,8 +110,12 @@ export default class ImageTile extends EventTarget
 
 		this.#updateGalleryWidth();
 
-		for( const image of this.images ){
-			this.#tiling( image );
+		for( let i = 0; i < this.images.length; i++ ){
+			if( signal?.aborted ) return;
+
+			this.#tiling( this.images[i] );
+
+			if( i % 100 === 99 ) await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		}
 
 		this.#tiling_finish();
