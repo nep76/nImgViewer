@@ -137,7 +137,7 @@ export default class ImageTile extends EventTarget
 
 	async #findImageFilesAsync( array, dir_handle, gid ){
 		let cnt = 0;
-		const regex = /\.(jpe?g|png)$/i;
+		const regex = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i;
 
 		for await ( const [name, handle] of dir_handle.entries() ){
     		if( handle.kind === "directory" ){
