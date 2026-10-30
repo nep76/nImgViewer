@@ -31,21 +31,21 @@ export default class OverlayViewer {
 			</dialog>
 		` );
 
-		this.root = this.html.firstElementChild;
 		this.domTree = {
-		  	ctrl : this.root.querySelector( "#OverlayViewer-ctrl" ),
-		  	close: this.root.querySelector( "#OverlayViewer-close" ),
-		 	scrl : this.root.querySelector( "#OverlayViewer-scrl" ),
-		  	image: this.root.querySelector( "#OverlayViewer-image" ),
+			root : this.html.firstElementChild,
+		  	ctrl : this.html.querySelector( "#OverlayViewer-ctrl" ),
+		  	close: this.html.querySelector( "#OverlayViewer-close" ),
+		 	scrl : this.html.querySelector( "#OverlayViewer-scrl" ),
+		  	image: this.html.querySelector( "#OverlayViewer-image" ),
 
-			grayscale: this.root.querySelector( "#OverlayViewer-grayscale" ),
-			flipX    : this.root.querySelector( "#OverlayViewer-flip-x" ),
-			flipY    : this.root.querySelector( "#OverlayViewer-flip-y" ),
-		  	zoom     : this.root.querySelector( "#OverlayViewer-zoom" ),
-			zoomNum  : this.root.querySelector( "#OverlayViewer-zoom-num" )
+			grayscale: this.html.querySelector( "#OverlayViewer-grayscale" ),
+			flipX    : this.html.querySelector( "#OverlayViewer-flip-x" ),
+			flipY    : this.html.querySelector( "#OverlayViewer-flip-y" ),
+		  	zoom     : this.html.querySelector( "#OverlayViewer-zoom" ),
+			zoomNum  : this.html.querySelector( "#OverlayViewer-zoom-num" )
 		};
 
-		if( name ) this.root.className = name;
+		if( name ) this.domTree.root.className = name;
 	  
 		this.domTree.zoom.min   = 10;
 		this.domTree.zoom.max   = 1600;
@@ -56,7 +56,7 @@ export default class OverlayViewer {
 		this.domTree.image.style.height = "100%";
 		this.domTree.image.style.cursor = "zoom-in";
 	  
-		this.root.addEventListener( "click", ( e ) => {
+		this.domTree.root.addEventListener( "click", ( e ) => {
 		  if( e.target === this.domTree.root || e.target === this.domTree.scrl || e.target === this.domTree.close ){
 			if( this.disableClick ){
 				this.disableClick = false;
@@ -179,12 +179,12 @@ export default class OverlayViewer {
 
 	getRootElement()
 	{
-	  	return this.root;
+	  	return this.domTree.root;
 	}
 
 	show()
 	{
-	  	this.root.showModal();
+	  	this.domTree.root.showModal();
 		
 		requestAnimationFrame( () => {
 			this.#updateFocusRatio( null, null );
@@ -193,7 +193,7 @@ export default class OverlayViewer {
 
 	hide()
 	{
-	  	this.root.close();
+	  	this.domTree.root.close();
 	}
 
 	setUrl( url )

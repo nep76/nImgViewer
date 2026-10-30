@@ -136,12 +136,11 @@ export default class ImageTile extends EventTarget
 	}
 
 	async #findImageFilesAsync( array, dir_handle, gid ){
-		let cnt = 0;
 		const regex = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i;
 
 		for await ( const [name, handle] of dir_handle.entries() ){
     		if( handle.kind === "directory" ){
-    		  	cnt += await this.#findImageFilesAsync( array, handle, gid );
+    		  	await this.#findImageFilesAsync( array, handle, gid );
     		  	continue;
     		} else if( handle.kind !== "file" ){
     		  	continue;
@@ -156,8 +155,6 @@ export default class ImageTile extends EventTarget
 				} );
 			}
 		}
-
-		return cnt;
 	}
 
 	async #createThumbnailsAsync()
@@ -323,7 +320,10 @@ export default class ImageTile extends EventTarget
 
 			if( this.thumbCache[image.thumbKey] ){
 				this.thumbCache[image.thumbKey].use = true;
-				image.thumbUrl = URL.createObjectURL( this.thumbCache[image.thumbKey].blob );
+				image.thumbUrl =
+					this.thumbCache[image.thumbKey].blob ?
+					URL.createObjectURL( this.thumbCache[image.thumbKey].blob ) :
+					image.url;
 				image.thumbKey = null;
 			} else{
 				image.thumbUrl = null;
@@ -401,8 +401,10 @@ export default class ImageTile extends EventTarget
         this.rootElement.replaceChildren();
 
 		for( const image of this.images ) {
+			if( image.thumbUrl && ( image.thumbUrl !== image.url ) ){
+				 URL.revokeObjectURL( image.thumbUrl );
+			}
 	  		URL.revokeObjectURL( image.url );
-			if( image.thumbUrl ) URL.revokeObjectURL( image.thumbUrl );
 		}
 
         this.#init();
