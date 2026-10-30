@@ -19,7 +19,6 @@ body {
  	margin: 0;
  	background: #222;
  	color: #ddd;
- 	font-family: sans-serif;
 	min-height: 100vh;
 	display: flex;
     flex-direction: column;
@@ -72,7 +71,7 @@ footer #invoke-policy-modal {
 
 footer #invoke-policy-modal:focus,
 footer #invoke-policy-modal:hover {
-	background: none !important;
+	background: none;
 	color: #bbb;
 }
 
@@ -114,17 +113,17 @@ button {
   	display: inline-block;
 }
 
-button:hover {
-  	background-color: #3f6fc4 !important;
-  	color: white;
-}
-
 button:focus {
 	border: 2px solid  #3f6fc4;
 	background-color: #555;
 	color: white;
   	outline: 0;
   	outline-offset: 0;
+}
+
+button:hover {
+  	background-color: #3f6fc4;
+  	color: white;
 }
 
 header button {
@@ -261,7 +260,7 @@ dialog#policy-modal ul li strong {
 }
 
 dialog#OverlayViewer {
-	overflow: visible !important;
+	overflow: visible;
 	gap: 2px;
 }
 

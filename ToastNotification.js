@@ -9,7 +9,7 @@ export default class ToastNotification {
 		this.html    = document.createRange().createContextualFragment( `
 			<div id="ToastNotification" class="ToastNotification-hide" hidden>
 				<p id="ToastNotification-content"></p>
-				<button id="ToastNotification-ok" hidden>OK</button>
+				<button type="button" id="ToastNotification-ok" hidden>OK</button>
 			</div>
 		` );
 

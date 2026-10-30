@@ -23,7 +23,7 @@ export default class OverlayViewer {
 					<input type="checkbox" id="OverlayViewer-flip-y"><label for="OverlayViewer-flip-y">上下反転</label>
 					<input type="range" id="OverlayViewer-zoom">
 					<label for="OverlayViewer-zoom">ズーム</label> <span id="OverlayViewer-zoom-num"></span>
-					<button id="OverlayViewer-close" title="閉じる" aria-label="ビューワーを閉じる" autofocus>✕</button>
+					<button type="button" id="OverlayViewer-close" title="閉じる" aria-label="ビューワーを閉じる" autofocus>✕</button>
 				</div>
 				<div id="OverlayViewer-scrl" draggable="false">
 					<img id="OverlayViewer-image" draggable="false">

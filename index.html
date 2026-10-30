@@ -15,8 +15,8 @@
 <body>	
 	<header>
 		<h1 id="app-name">nImgViewer</h1>
-		<button id="add" title="フォルダを追加" aria-label="フォルダを追加">＋</button>
-		<button id="reset" commandfor="delete-modal" command="show-modal" title="追加されたフォルダを全てクリア" aria-label="追加されたフォルダを全てクリア">✕</button>
+		<button type="button" id="add" title="フォルダを追加">フォルダを追加</button>
+		<button type="button" id="reset" commandfor="delete-modal" command="show-modal" title="追加されたフォルダを全てクリア">フォルダをクリア</button>
 		<span id="status">0 枚</span>
 	</header>
 
@@ -41,21 +41,21 @@
 				<li>保存されたlocalStorage/IndexedDBは<strong>リセットボタン（UI上の「✕」ボタン）ですべて削除</strong>されます。</li>
 			</ul>
 		</div>
-		<button id="policy-ok" autofocus>OK</button>
+		<button type="button" id="policy-ok" autofocus>OK</button>
 	</dialog>
 
 	<dialog id="rebuild-modal" class="alert">
 		<p id="rebuild-desc">画像を再表示するにはアクセス許可が必要です。</p>
-		<button id="rebuild-ok" autofocus>承認して再表示</button> <button id="rebuild-abort">中断</button>
+		<button type="button" id="rebuild-ok" autofocus>承認して再表示</button> <button type="button" id="rebuild-abort">中断</button>
 	</dialog>
 
 	<dialog id="delete-modal" class="alert">
 		<p>画像一覧とフォルダの登録を削除します。<br>この操作は取り消せません。</p>
-		<button id="delete-ok">削除</button> <button commandfor="delete-modal" command="close" autofocus>キャンセル</button>
+		<button type="button" id="delete-ok">削除</button> <button type="button" commandfor="delete-modal" command="close" autofocus>キャンセル</button>
 	</dialog>
 
 	<footer>
-		<p>© 2026 nep · github: <a href="https://github.com/nep76/nImgViewer">nep76/nImgViewer</a> · <button id="invoke-policy-modal" commandfor="policy-modal" command="show-modal">Privacy</a></p>
+		<p>© 2026 nep · github: <a href="https://github.com/nep76/nImgViewer">nep76/nImgViewer</a> · <button type="button" id="invoke-policy-modal" commandfor="policy-modal" command="show-modal">Privacy</button></p>
 	</footer>
 
 </body>
