@@ -159,6 +159,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		const perm = await mDirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
 			await mImageTile.addImagesByDirHandleAsync( mDirs[key].dirHandle, key );
+			update_status();
 		} else{
 			mDeniedDirHandle[key] = mDirs[key];
 		}
