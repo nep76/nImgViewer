@@ -42,7 +42,7 @@ export default class ImageTile extends EventTarget
     	this.galleryWidth = this.rootElement.clientWidth - parseFloat( gallery_style.paddingLeft ) - parseFloat( gallery_style.paddingRight );
 	}
 
-	async loadThumbsFromDb()
+	async loadThumbsFromDbAsync()
 	{
 		try {
 			await this.idh.loadDataAsync( "thumbCache", ( key, value ) => {
@@ -274,7 +274,7 @@ export default class ImageTile extends EventTarget
 							image.element.src = URL.createObjectURL( blob );
 
 							URL.revokeObjectURL( this.thumbUrl );
-							this.thumbUrl = image.element.src;
+							image.thumbUrl = image.element.src;
 						}
 
 						this.thumbCache[image.thumbKey].data.done = true;

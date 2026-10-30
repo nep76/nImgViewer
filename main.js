@@ -149,7 +149,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 
 	try{
 		mDirs = await mIndexedDbHash.loadDataAsync( "dirs" );
-		mImageTile.loadThumbsFromDb();
+		await mImageTile.loadThumbsFromDbAsync();
 	} catch( e ){
 		console.error( e );
 		mNotification.show( "ギャラリーの読み込みに失敗しました。", true );
@@ -165,7 +165,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 	} );
 	
 	mImageTile.addEventListener( "it_preloadimage", async ( e ) => {
-		mNotification.show( `${e.detail.dir.name}/${e.detail.file.name}` );
+		mNotification.show( `${e.detail.dir.name}, ${e.detail.file.name}` );
 	} );
 
 	for( const key of Object.keys( mDirs ) ){
