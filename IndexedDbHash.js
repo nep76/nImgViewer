@@ -1,7 +1,9 @@
 
-export default class IndexedDbHash {
+export default class IndexedDbHash extends EventTarget {
 	constructor( name, ver, keys )
 	{
+		super();
+
 		if( name === null || name === undefined || name === "" ) throw new Error( "ImageDb: Database name required." );
 
 		this.name = name;
@@ -14,16 +16,26 @@ export default class IndexedDbHash {
     	return new Promise( ( resolve, reject ) => {
       		const req = indexedDB.open( this.name, this.ver );
 
-    	  	req.onupgradeneeded = () => {
+    	  	req.onupgradeneeded = ( e ) => {
 	        	const db = req.result;
 
+				for( const key of Array.from( db.objectStoreNames ) ){
+        			db.deleteObjectStore( key );
+    			}
+
 				for( const key of this.keys ){
-					if( db.objectStoreNames.contains( key ) ){
-						db.deleteObjectStore( key );
-					}
 					db.createObjectStore( key );
 				}
-      		}
+
+				this.dispatchEvent(
+					new CustomEvent( "idh_upgrade", {
+						detail: {
+							currentVersion : e.newVersion,
+							previousVersion: e.oldVersion
+						}
+					} )
+				);
+      		};
       		req.onsuccess = () => resolve( req.result );
       		req.onerror   = () => reject( req.error );
     	} );

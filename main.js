@@ -143,12 +143,16 @@ document.addEventListener( "DOMContentLoaded", async () => {
 	document.body.appendChild( mNotification.getRootElement() );
 	document.querySelector( "main" ).appendChild( mImageTile.getRootElement() );
 
+	mIndexedDbHash.addEventListener( "idh_upgrade", () => {
+		mNotification.show( "ギャラリーが初期化されました。", true );
+	} );
+
 	try{
 		mDirs = await mIndexedDbHash.loadDataAsync( "dirs" );
 		mImageTile.loadThumbsFromDb();
 	} catch( e ){
 		console.error( e );
-		mNotification.show( "ブラウザのデータストレージの読み込みに失敗しました。", true );
+		mNotification.show( "ギャラリーの読み込みに失敗しました。", true );
 		return;
 	}
 
