@@ -4,7 +4,7 @@ import OverlayViewer from "./OverlayViewer.js";
 import ToastNotification from "./ToastNotification.js";
 
 const mIndexedDbHash = new IndexedDbHash( "nImgViewer",
-	2, [ "dirs", ...ImageTile.requiredDbKeys ]
+	3, [ "dirs", ...ImageTile.requiredDbKeys ]
 );
 const mImageTile     = new ImageTile( mIndexedDbHash, "gallery" );
 const mOverlayViewer = new OverlayViewer( null );
@@ -53,7 +53,7 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 			}
 
 			await mImageTile.addImagesByDirHandleAsync( dir, id );
-			
+
 			update_status();
 		}
 	} catch( e ){
