@@ -30,7 +30,10 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 		const dir = await window.showDirectoryPicker();
 		if( dir ){
 			for( const key of Object.keys( mDirs ) ){
-			  	if( await mDirs[key].dirHandle.isSameEntry( dir ) ) return;
+			  	if( await mDirs[key].dirHandle.isSameEntry( dir ) ){
+					mNotification.show( `フォルダ "${mDirs[key].dirHandle.name}" は既にギャラリーに含まれています。` );
+					return;
+				}
 			}
 		  
 			const id  = crypto.randomUUID();
@@ -139,7 +142,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		mImageTile.loadThumbsFromDb();
 	} catch( e ){
 		console.error( e );
-		mNotification.show( "ブラウザのデータストレージの読み込みに失敗しました。" );
+		mNotification.show( "ブラウザのデータストレージの読み込みに失敗しました。", true );
 		return;
 	}
 
