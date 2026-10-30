@@ -212,13 +212,13 @@ export default class ImageTile extends EventTarget
 				if( ! pending.length ) break;
 				
 				await this.#workerPoolAsync( pending, 0, 4, async ( image ) => {
-					const bitmap = await createImageBitmap( image.fileObj );
-					try{
-						let   blob;
-						const t_base_height = this.baseHeight * 2;
-						const ratio         = t_base_height / image.realHeight;
+					const t_base_height = this.baseHeight * 2;
+					const ratio         = t_base_height / image.realHeight;
 
-						if( ratio < 1 ){
+					let blob;
+					if( ratio < 1 ){
+						const bitmap = await createImageBitmap( image.fileObj );
+						try {					
 							const target_width  = Math.round( image.realWidth * ratio );
 							const target_height = Math.round( image.realHeight * ratio );
 							let canvas_width    = image.realWidth;
@@ -275,19 +275,19 @@ export default class ImageTile extends EventTarget
 
 							URL.revokeObjectURL( this.thumbUrl );
 							image.thumbUrl = image.element.src;
+						} finally{
+							bitmap.close();
 						}
+					}
 
-						this.thumbCache[image.thumbKey].data.done = true;
-						this.thumbCache[image.thumbKey].data.blob = blob;
-						thumbdb[image.thumbKey] = this.thumbCache[image.thumbKey].data;
+					this.thumbCache[image.thumbKey].data.done = true;
+					this.thumbCache[image.thumbKey].data.blob = blob;
+					thumbdb[image.thumbKey] = this.thumbCache[image.thumbKey].data;
 
-						if( Object.keys( thumbdb ).length >= 10 ){
-							const chunk = thumbdb;
-							thumbdb = {};
-							await this.idh.storeDataAsync( "thumbCache", chunk );
-						}
-					} finally{
-						bitmap.close();
+					if( Object.keys( thumbdb ).length >= 10 ){
+						const chunk = thumbdb;
+						thumbdb = {};
+						await this.idh.storeDataAsync( "thumbCache", chunk );
 					}
 				} );
 
