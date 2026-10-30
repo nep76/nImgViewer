@@ -207,7 +207,6 @@ export default class ImageTile extends EventTarget
 				for( const image of this.images ){
 					if( image.thumbUrl !== image.url && ( ! this.thumbCache[image.thumbKey].data.done ) ){
 						pending.push( image );
-						console.log( { image:image, thumbCache:this.thumbCache[image.thumbKey] } );
 					}
 				}
 				if( ! pending.length ) break;
@@ -272,7 +271,6 @@ export default class ImageTile extends EventTarget
 								}, "image/png", 0.8 );
 							} );
 
-							console.log( "hq thumb");
 							image.element.src = URL.createObjectURL( blob );
 
 							URL.revokeObjectURL( this.thumbUrl );
@@ -292,7 +290,7 @@ export default class ImageTile extends EventTarget
 						bitmap.close();
 					}
 				} );
-				
+
 				if( Object.keys( thumbdb ).length ){
 					await this.idh.storeDataAsync( "thumbCache", thumbdb );
 				}
