@@ -57,7 +57,7 @@ export default class OverlayViewer {
 		this.domTree.image.style.cursor = "zoom-in";
 	  
 		this.root.addEventListener( "click", ( e ) => {
-		  if( e.target === this.domTree.root || e.target === this.domTree.scrl || e.target == this.domTree.close ){
+		  if( e.target === this.domTree.root || e.target === this.domTree.scrl || e.target === this.domTree.close ){
 			if( this.disableClick ){
 				this.disableClick = false;
 				return;
@@ -97,7 +97,7 @@ export default class OverlayViewer {
 		} );
 		this.domTree.zoom.addEventListener( "input", () => {
 			this.#updateZoom();
-	  		this.domTree.zoomNum.textContent = this.domTree.zoom.value / 2 + "%";
+	  		this.domTree.zoomNum.textContent = `${this.domTree.zoom.value / 2}%`;
 		} );
 
 		this.domTree.scrl.addEventListener( "pointerdown", ( e ) => {
@@ -108,7 +108,7 @@ export default class OverlayViewer {
 			this.grabbing = true;
 			e.target.style.cursor = "grabbing";
 		} );
-		document.body.addEventListener( "pointerup", ( e ) => {
+		document.body.addEventListener( "pointerup", () => {
 			this.grabbing = false;
 			this.domTree.image.style.cursor = this.fit ? "zoom-in" : "zoom-out";
 		} );

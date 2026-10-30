@@ -94,7 +94,7 @@ export default class IndexedDbHash {
 			  	const tx    = db.transaction( key, "readwrite" );
 			  	const store = tx.objectStore( key );
 
-			  	id_arr.forEach( id => store.delete( id ) );
+			  	id_arr.forEach( ( id ) => { store.delete( id ) } );
 
 			  	tx.oncomplete = resolve;
 			  	tx.onerror = () => reject( tx.error );

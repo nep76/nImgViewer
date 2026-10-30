@@ -3,20 +3,19 @@ import ImageTile from "./ImageTile.js";
 import OverlayViewer from "./OverlayViewer.js";
 import ToastNotification from "./ToastNotification.js";
 
-const gIndexedDbHash = new IndexedDbHash( "nImgViewer",
+const mIndexedDbHash = new IndexedDbHash( "nImgViewer",
 	2, [ "dirs", ...ImageTile.requiredDbKeys ]
 );
-const gImageTile     = new ImageTile( gIndexedDbHash, "gallery" );
-const gOverlayViewer = new OverlayViewer( null );
-const gNotification  = new ToastNotification();
+const mImageTile     = new ImageTile( mIndexedDbHash, "gallery" );
+const mOverlayViewer = new OverlayViewer( null );
+const mNotification  = new ToastNotification();
 
-let gDirs = {};
-let gAcceptDirHandle = {};
-let gDeniedDirHandle = {};
+let mDirs = {};
+let mDeniedDirHandle = {};
 
 function update_status()
 {
-	const cnt  = gImageTile.getImagesCount();
+	const cnt = gImageTile.getImagesCount();
 	document.getElementById( "status" ).textContent = `${cnt} 枚`;
 	document.getElementById( "empty" ).hidden = ( cnt !== 0 );
 }
@@ -30,17 +29,17 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 	try{
 		const dir = await window.showDirectoryPicker();
 		if( dir ){
-			for( const key of Object.keys( gDirs ) ){
-			  	if( await gDirs[key].dirHandle.isSameEntry( dir ) ) return;
+			for( const key of Object.keys( mDirs ) ){
+			  	if( await mDirs[key].dirHandle.isSameEntry( dir ) ) return;
 			}
 		  
 			const id  = crypto.randomUUID();
-			const cnt = await gImageTile.addImagesByDirHandleAsync( dir, id );
+			const cnt = await mImageTile.addImagesByDirHandleAsync( dir, id );
 		  
 			if( cnt ){
 				try{
-			  		Object.assign( gDirs,
-						await gIndexedDbHash.storeDataAsync( "dirs", { [id]: { dirHandle: dir } } )
+			  		Object.assign( mDirs,
+						await mIndexedDbHash.storeDataAsync( "dirs", { [id]: { dirHandle: dir } } )
 					);
 				} catch( e ){
 					console.error( e );
@@ -69,13 +68,13 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 	button.disabled = true;
 
 	try {
-		gImageTile.clear();
+		mImageTile.clear();
 		update_status();
 		
 		localStorage.clear();
-		await gIndexedDbHash.clearDbAsync();
+		await mIndexedDbHash.clearDbAsync();
 
-		gDirs = {};
+		mDirs = {};
 	} catch( e ){
 		console.error( e );
 	} finally{
@@ -85,90 +84,91 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 	document.getElementById( "delete-modal" ).close();
 } );
 
-document.getElementById( "rebuild-ok" ).addEventListener( "click", async ( e ) => {
+document.getElementById( "rebuild-ok" ).addEventListener( "click", async () => {
 	document.getElementById( "rebuild-modal" ).close();
 
 	const desc = document.getElementById( "rebuild-desc" );
 	try{
-		for( const key of Object.keys( gDeniedDirHandle ) ){
-			const perm = await gDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
+		const accpeted_dirs = {};
+		for( const key of Object.keys( mDeniedDirHandle ) ){
+			const perm = await mDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
 			if( perm !== "granted" ){
-				console.log( `nImgViewer: Permission denied to read for the directory: ${gDeniedDirHandle[key].dirHandle.name }` );
+				console.log( `nImgViewer: Permission denied to read for the directory: ${mDeniedDirHandle[key].dirHandle.name }` );
 			} else{
-				gAcceptDirHandle[key] = gDeniedDirHandle[key];
+				accpeted_dirs[key] = mDeniedDirHandle[key];
 			}
-			delete gDeniedDirHandle[key];
+			delete mDeniedDirHandle[key];
 		}
 
-		for( const key of Object.keys( gAcceptDirHandle ) ){
-			await gImageTile.addImagesByDirHandleAsync( gAcceptDirHandle[key].dirHandle, key );
-			delete gAcceptDirHandle[key];
+		for( const key of Object.keys( accpeted_dirs ) ){
+			await mImageTile.addImagesByDirHandleAsync( accpeted_dirs[key].dirHandle, key );
+			delete accpeted_dirs[key];
 
 			update_status();
 		}
 	} finally{
-		const cnt_denied = Object.keys( gDeniedDirHandle ).length;
+		const cnt_denied = Object.keys( mDeniedDirHandle ).length;
 		update_status();
 		if( cnt_denied ){
 			desc.textContent = `あと ${cnt_denied} フォルダに対して許可が必要です。`;
 			document.getElementById( "rebuild-modal" ).showModal();
 		} else{
-			gImageTile.cleanupThumbnailsAsync();
+			mImageTile.cleanupThumbnailsAsync();
 		}
 	}
 
-	gDeniedDirHandle = {};
+	mDeniedDirHandle = {};
 } );
 
-document.getElementById( "rebuild-abort" ).addEventListener( "click", async ( e ) => {
+document.getElementById( "rebuild-abort" ).addEventListener( "click", async () => {
 	document.getElementById( "rebuild-modal" ).close();
-	gDeniedDirHandle = {};
+	mDeniedDirHandle = {};
 
 	update_status();
 
-	gNotification.show( "アクセスが拒否されたため処理を中断しました。再試行するにはページを再読み込みしてください。", true );
+	mNotification.show( "アクセスが拒否されたため処理を中断しました。再試行するにはページを再読み込みしてください。", true );
 } );
 
 document.addEventListener( "DOMContentLoaded", async () => {
-	document.body.appendChild( gOverlayViewer.getRootElement() );
-	document.body.appendChild( gNotification.getRootElement() );
-	document.querySelector( "main" ).appendChild( gImageTile.getRootElement() );
+	document.body.appendChild( mOverlayViewer.getRootElement() );
+	document.body.appendChild( mNotification.getRootElement() );
+	document.querySelector( "main" ).appendChild( mImageTile.getRootElement() );
 
 	try{
-		gDirs = await gIndexedDbHash.loadDataAsync( "dirs" );
-		gImageTile.loadThumbsFromDb( gIndexedDbHash );
+		mDirs = await mIndexedDbHash.loadDataAsync( "dirs" );
+		mImageTile.loadThumbsFromDb();
 	} catch( e ){
 		console.error( e );
-		gNotification.show( "ブラウザのデータストレージの読み込みに失敗しました。" );
+		mNotification.show( "ブラウザのデータストレージの読み込みに失敗しました。" );
 		return;
 	}
 
-	gImageTile.addEventListener( "click", ( e ) => {
+	mImageTile.addEventListener( "click", ( e ) => {
 		const img = e.target.closest( "img" );
-		if( ! img || ! gImageTile.getRootElement().contains( img ) ) return;
+		if( ! img || ! mImageTile.getRootElement().contains( img ) ) return;
 
-		gOverlayViewer.setUrl( img.imageTileObj.url );
-		gOverlayViewer.show();
+		mOverlayViewer.setUrl( img.imageTileObj.url );
+		mOverlayViewer.show();
 	} );
 	
-	gImageTile.addEventListener( "it_preloadimage", async ( e ) => {
-		gNotification.show( `${e.detail.dir.name}/${e.detail.file.name}` );
+	mImageTile.addEventListener( "it_preloadimage", async ( e ) => {
+		mNotification.show( `${e.detail.dir.name}/${e.detail.file.name}` );
 	} );
 
-	for( const key of Object.keys( gDirs ) ){
-		const perm = await gDirs[key].dirHandle.queryPermission( { mode: "read" } );
+	for( const key of Object.keys( mDirs ) ){
+		const perm = await mDirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
-			await gImageTile.addImagesByDirHandleAsync( gDirs[key].dirHandle, key );
+			await mImageTile.addImagesByDirHandleAsync( mDirs[key].dirHandle, key );
 		} else{
-			gDeniedDirHandle[key] = gDirs[key];
+			mDeniedDirHandle[key] = mDirs[key];
 		}
 	}
 
-	if( Object.keys( gDeniedDirHandle ).length ){
+	if( Object.keys( mDeniedDirHandle ).length ){
 		document.getElementById( "rebuild-modal" ).showModal();
 	} else{
 		update_status();
-		gImageTile.cleanupThumbnailsAsync();
+		mImageTile.cleanupThumbnailsAsync();
 	}
 
 	const observer = new ResizeObserver( ( () => {
@@ -176,20 +176,20 @@ document.addEventListener( "DOMContentLoaded", async () => {
 
 		return async ( entries ) => {
 			for( const e of entries ){
-				if( e.target !== gImageTile.getRootElement() || e.contentRect.width === prev_width ) break;
+				if( e.target !== mImageTile.getRootElement() || e.contentRect.width === prev_width ) break;
 				
 				prev_width = e.contentRect.width;
 
-				await gImageTile.reCalcTilingAsync();
+				await mImageTile.reCalcTilingAsync();
 				break;
 			}
 		}
 	} )() );
 
-	observer.observe( gImageTile.getRootElement() );
+	observer.observe( mImageTile.getRootElement() );
 
 	try{
-		if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( gDirs ).length ){
+		if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( mDirs ).length ){
 			document.getElementById( "policy-modal" ).showModal();
 		}
 	} catch( e ){

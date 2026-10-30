@@ -123,7 +123,7 @@ export default class ImageTile extends EventTarget
 
 		async function worker()
 		{
-			while( 1 ){
+			while( true ){
 				const i = cur_idx++;
 				if( i >= array.length ) return;
 				await cb( array[i] );
@@ -143,7 +143,7 @@ export default class ImageTile extends EventTarget
     		if( handle.kind === "directory" ){
     		  	cnt += await this.#findImageFilesAsync( array, handle, gid );
     		  	continue;
-    		} else if( handle.kind != "file" ){
+    		} else if( handle.kind !== "file" ){
     		  	continue;
     		}
 
@@ -167,11 +167,11 @@ export default class ImageTile extends EventTarget
 		this.thumbWorkerReady = false;
 
 		try{
-			let thumbdb = {};
+			const thumbdb = {};
 
-			while( 1 ){
-				let pending = [];
-				let thumbblob;
+			while( true ){
+				const pending = [];
+				let   thumbblob;
 
 				for( const image of this.images ){
 					if( image.thumbKey ) pending.push( image );
@@ -232,7 +232,7 @@ export default class ImageTile extends EventTarget
 										target_height: target_height,
 										url: image.url
 									});
-									reject( new Error( "Failed to create thumbname for " + image.url ) );
+									reject( new Error( `Failed to create thumbname for ${image.url}` ) );
 								}
 							}, "image/png", 0.8 );
 						} );
@@ -288,7 +288,7 @@ export default class ImageTile extends EventTarget
 		this.#updateGalleryWidth();
 
 		{
-			let new_images = [];
+			const new_images = [];
 
 			await this.#findImageFilesAsync( new_images, dir_handle, gid );
 
@@ -384,7 +384,7 @@ export default class ImageTile extends EventTarget
 
 	async cleanupThumbnailsAsync()
 	{
-		let trash = [];
+		const trash = [];
 
 		for( const key of Object.keys( this.thumbCache ) ){
 			if( ! this.thumbCache[key].use ) trash.push( key );
