@@ -15,7 +15,7 @@ let mDeniedDirHandle = {};
 
 function update_status()
 {
-	const cnt = gImageTile.getImagesCount();
+	const cnt = mImageTile.getImagesCount();
 	document.getElementById( "status" ).textContent = `${cnt} 枚`;
 	document.getElementById( "empty" ).hidden = ( cnt !== 0 );
 }
