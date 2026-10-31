@@ -133,7 +133,7 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 		clear_button.disabled = false;
 		add_button.disabled   = false;
 		
-		mNotification.show( "ギャラリーが初期化されました。" );
+		mNotification.show( "すべての設定が削除されました。" );
 	}
 
 	document.getElementById( "delete-modal" ).close();
