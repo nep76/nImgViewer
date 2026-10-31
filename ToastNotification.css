@@ -23,6 +23,10 @@
 
 .ToastNotification-show {
     transform: translateY(0) translateX(-50%);
+
+    @starting-style {
+        transform: translateY(100%) translateX(-50%);
+    }
 }
 
 #ToastNotification-content {

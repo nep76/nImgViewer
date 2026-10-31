@@ -65,11 +65,13 @@ export default class ToastNotification {
 			this.timerId = setTimeout( () => this.#close(), 3000 );
 		}
 		
-		requestAnimationFrame( () => {
-			requestAnimationFrame( () => {
-				this.domTree.root.classList.replace( "ToastNotification-hide", "ToastNotification-show" );
-			} );
-		} );
+		this.domTree.root.classList.replace( "ToastNotification-hide", "ToastNotification-show" );
+
+		//requestAnimationFrame( () => {
+		//	requestAnimationFrame( () => {
+		//		this.domTree.root.classList.replace( "ToastNotification-hide", "ToastNotification-show" );
+		//	} );
+		//} );
 
 		return promise;
 	}
