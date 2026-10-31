@@ -1,3 +1,13 @@
+
+@keyframes bounce {
+    0%, 70%, 80%, 90% {
+        transform: translateY(0);
+    }
+    75%, 95% {
+        transform: translateY(-4px);
+    }
+}
+
 * {
   	box-sizing: border-box;
 }
@@ -163,6 +173,7 @@ dialog.alert button {
 
 #add {
 	background-image: url( "./folderopen.svg" );
+	anchor-name: --add-button;
 }
 
 #reset {
@@ -183,9 +194,44 @@ dialog.alert button {
 }
 
 #empty {
-  	padding: 24px 12px;
-  	color: #999;
+	padding: 16px 15px;
+  	color: #fff;
   	font-size: 14px;
+	font-weight: bold;
+
+    position: absolute;
+    position-anchor: --add-button;
+    position-area: bottom;
+    margin-top: 12px;
+	align-items: center;
+	gap: 8px;
+
+    background: #3f6fc4;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px #0004;
+
+    width: max-content;
+	z-index: 10;
+	animation: bounce 2s ease-in-out infinite;
+
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+#empty:not([hidden]) {
+	display: flex;
+}
+
+#empty::before {
+    content: "";
+	position-anchor: --add-button;
+    position: absolute;
+	position-area: none;
+    left: 28px;
+    bottom:100%;
+    border: 8px solid transparent;
+    border-bottom-color: #3f6fc4;
 }
 
 span#status {
