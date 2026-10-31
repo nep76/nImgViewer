@@ -177,22 +177,9 @@ document.getElementById( "rebuild-abort" ).addEventListener( "click", async () =
 } );
 
 document.addEventListener( "DOMContentLoaded", async () => {
-	document.body.appendChild( mOverlayViewer.getRootElement() );
-	document.body.appendChild( mNotification.getRootElement() );
-	document.querySelector( "main" ).appendChild( mImageTile.getRootElement() );
-
 	mIndexedDbHash.addEventListener( "idh_upgrade", () => {
 		mNotification.show( "ギャラリーが初期化されました。", true );
 	} );
-
-	try{
-		mDirs = await mIndexedDbHash.loadDataAsync( "dirs" );
-		await mImageTile.loadThumbsFromDbAsync();
-	} catch( e ){
-		console.error( e );
-		mNotification.show( "ギャラリーの読み込みに失敗しました。", true );
-		return;
-	}
 
 	mImageTile.addEventListener( "click", ( e ) => {
 		const img = e.target.closest( "img" );
@@ -211,6 +198,66 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		mNotification.show( `${e.detail.dir.name} (${e.detail.count}/${e.detail.maxEntries}) ${e.detail.file.name}` );
 	} );
 
+	document.body.appendChild( mOverlayViewer.getRootElement() );
+	document.body.appendChild( mNotification.getRootElement() );
+	document.querySelector( "main" ).appendChild( mImageTile.getRootElement() );
+
+	try{
+		mDirs = await mIndexedDbHash.loadDataAsync( "dirs" );
+		await mImageTile.loadThumbsFromDbAsync();
+	} catch( e ){
+		console.error( e );
+		mNotification.show( "ギャラリーの読み込みに失敗しました。", true );
+		return;
+	}
+
+	const resize_tiling = async () => {
+		if( ! mReCalcState.lastPromise ){
+			mReCalcState.abortCtrl   = new AbortController();
+			mReCalcState.lastPromise = mImageTile.reCalcTilingAsync( mReCalcState.abortCtrl.signal );
+		} else if( ! mReCalcState.pending ){
+			mReCalcState.pending = true;
+			mReCalcState.abortCtrl.abort();
+			
+			await mReCalcState.lastPromise;
+
+			mReCalcState.abortCtrl   = new AbortController();
+			mReCalcState.lastPromise = mImageTile.reCalcTilingAsync( mReCalcState.abortCtrl.signal );
+			mReCalcState.pending     = false;
+		}
+
+		const current_promise = mReCalcState.lastPromise;
+
+		mReCalcState.lastPromise.finally( () => {
+			if( mReCalcState.lastPromise !== current_promise ) return;
+
+			mReCalcState.abortCtrl   = null;
+			mReCalcState.lastPromise = null;
+			mReCalcState.pending     = false;
+		}) ;
+	};
+
+	const observer = new ResizeObserver( ( () => {
+		let prev_width = null;
+
+		return async ( entries ) => {
+			for( const e of entries ){
+				if(
+					e.target !== mImageTile.getRootElement() ||
+					e.contentRect.width === prev_width       ||
+					mReCalcState.pending
+				) break;
+
+				prev_width = e.contentRect.width;
+				resize_tiling();
+				
+				break;
+			}
+		}
+	} )() );
+
+	observer.observe( mImageTile.getRootElement() );
+
 	for( const key of Object.keys( mDirs ) ){
 		const perm = await mDirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
@@ -226,49 +273,10 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		update_status();
 		mImageTile.cleanupThumbnailsAsync();
 	}
-
-	const observer = new ResizeObserver( ( () => {
-		let prev_width = null;
-
-		return async ( entries ) => {
-			for( const e of entries ){
-				if(
-					e.target !== mImageTile.getRootElement() ||
-					e.contentRect.width === prev_width       ||
-					mReCalcState.pending
-				) break;
-
-				prev_width = e.contentRect.width;
-				
-				if( ! mReCalcState.lastPromise ){
-					mReCalcState.abortCtrl   = new AbortController();
-					mReCalcState.lastPromise = mImageTile.reCalcTilingAsync( mReCalcState.abortCtrl.signal );
-				} else if( ! mReCalcState.pending ){
-					mReCalcState.pending = true;
-					mReCalcState.abortCtrl.abort();
-					
-					await mReCalcState.lastPromise;
-
-					mReCalcState.abortCtrl   = new AbortController();
-					mReCalcState.lastPromise = mImageTile.reCalcTilingAsync( mReCalcState.abortCtrl.signal );
-					mReCalcState.pending     = false;
-				}
-
-				const current_promise = mReCalcState.lastPromise;
-
-				mReCalcState.lastPromise.finally( () => {
-					if( mReCalcState.lastPromise !== current_promise ) return;
-
-					mReCalcState.abortCtrl   = null;
-					mReCalcState.lastPromise = null;
-					mReCalcState.pending     = false;
-				}) ;
-				break;
-			}
-		}
-	} )() );
-
-	observer.observe( mImageTile.getRootElement() );
+	
+	if( ! mReCalcState.pending ){
+		resize_tiling();
+	}
 
 	try{
 		if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( mDirs ).length ){
