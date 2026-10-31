@@ -261,8 +261,6 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		}
 	} )() );
 
-	observer.observe( mImageTile.getRootElement() );
-
 	for( const key of Object.keys( mDirs ) ){
 		const perm = await mDirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
@@ -279,9 +277,12 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		mImageTile.cleanupThumbnailsAsync();
 	}
 	
-	if( ! mReCalcState.pending ){
-		resize_tiling();
-	}
+	
+	observer.observe( mImageTile.getRootElement() );
+
+	//if( ! mReCalcState.pending ){
+	//	resize_tiling();
+	//}
 
 	try{
 		if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( mDirs ).length ){
