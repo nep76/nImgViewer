@@ -156,7 +156,7 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async () => {
 		}
 
 		for( const key of Object.keys( accpeted_dir_handle ) ){
-			await add_image_wrapper_async( accpeted_dir_handle[key], key );
+			await add_image_wrapper_async( accpeted_dir_handle[key].dirHandle, key );
 			update_status();
 		}
 	} finally{
@@ -261,6 +261,8 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		}
 	} )() );
 
+	observer.observe( mImageTile.getRootElement() );
+
 	for( const key of Object.keys( mDirs ) ){
 		const perm = await mDirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
@@ -277,12 +279,9 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		mImageTile.cleanupThumbnailsAsync();
 	}
 	
-	
-	observer.observe( mImageTile.getRootElement() );
-
-	//if( ! mReCalcState.pending ){
-	//	resize_tiling();
-	//}
+	if( ! mReCalcState.pending ){
+		resize_tiling();
+	}
 
 	try{
 		if( ! localStorage.getItem( "policy-ok" ) && ! Object.keys( mDirs ).length ){
