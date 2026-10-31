@@ -144,18 +144,23 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async () => {
 
 	const desc = document.getElementById( "rebuild-desc" );
 	try{
+		const accpeted_dir_handle = {};
 		for( const key of Object.keys( mDeniedDirHandle ) ){
 			const perm = await mDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
 			if( perm !== "granted" ){
 				console.log( `nImgViewer: Permission denied to read for the directory: ${mDeniedDirHandle[key].dirHandle.name }` );
 			} else{
-				await add_image_wrapper_async( mDirs[key].dirHandle, key );
+				accpeted_dir_handle[key] = mDeniedDirHandle[key];
 			}
 			delete mDeniedDirHandle[key];
 		}
+
+		for( const key of Object.keys( accpeted_dir_handle ) ){
+			await add_image_wrapper_async( accpeted_dir_handle[key], key );
+			update_status();
+		}
 	} finally{
 		const cnt_denied = Object.keys( mDeniedDirHandle ).length;
-		update_status();
 		if( cnt_denied ){
 			desc.textContent = `あと ${cnt_denied} フォルダに対して許可が必要です。`;
 			document.getElementById( "rebuild-modal" ).showModal();
