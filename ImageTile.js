@@ -3,6 +3,8 @@ export default class ImageTile extends EventTarget
 {
 	static requiredDbKeys = [ "thumbCache" ];
 
+	static #sleep = ( ms ) => new Promise( resolve => setTimeout( resolve, ms ) );
+
     constructor( idh, id )
     {
 		super();
@@ -14,14 +16,19 @@ export default class ImageTile extends EventTarget
 		this.displayIndex = 0;
 
 		this.thumbWorkerReady = true;
+		this.thumbWorkerPromise = null;
 		this.thumbCache = {};
-
-        this.rootElement = document.createElement( "div" );
-        this.rootElement.id = id;
 
 		this.baseHeight = 220;
 		
         this.#init();
+
+        this.rootElement = document.createElement( "div" );
+        this.rootElement.id = id;
+		//window.addEventListener( "scrollend", () => {
+		//	console.log( this.linesOffset );
+		//} );
+
 		this.#updateGalleryWidth();
     }
 
@@ -35,6 +42,7 @@ export default class ImageTile extends EventTarget
 		this.numImages      = 0;
 		this.thumbCache     = {};
 		this.displayIndex   = 0;
+		this.linesOffset    = [];
     }
 
 	#updateGalleryWidth(){
@@ -68,7 +76,7 @@ export default class ImageTile extends EventTarget
 
 	#tiling( image )
 	{
-		let cur_width = 0, cur_ratio = 0
+		let cur_width = 0, cur_ratio = 0;
 
     	cur_ratio = this.baseHeight / image.realHeight;
     	cur_width = image.realWidth * cur_ratio;
@@ -82,9 +90,10 @@ export default class ImageTile extends EventTarget
     			this.images[this.lineStart + i].element.height = ( this.images[this.lineStart + i].realHeight * this.imgsRatio[i] * zoom_ratio ) - 2;
     		}
         
-    		this.imgsRatio = [];
+    		this.imgsRatio.length = 0;
     		this.totalLineWidth = 0;
     		this.lineStart = this.lineEnd;
+			this.linesOffset.push( this.lineStart );
     	}
 
     	this.totalLineWidth += cur_width;
@@ -105,10 +114,10 @@ export default class ImageTile extends EventTarget
 	{
 		if( ! this.numImages ) return;
 
-		this.lineStart      = 0;
-		this.lineEnd        = 0;
-		this.totalLineWidth = 0;
-		this.imgsRatio      = [];
+		this.lineStart        = 0;
+		this.lineEnd          = 0;
+		this.totalLineWidth   = 0;
+		this.imgsRatio.length = 0;
 
 		this.#updateGalleryWidth();
 
@@ -117,21 +126,22 @@ export default class ImageTile extends EventTarget
 
 			this.#tiling( this.images[i] );
 
-			if( i % 100 === 99 ) await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+			if( i % 100 === 99 ) await ImageTile.#sleep( 0 );
 		}
 
 		this.#tiling_finish();
 	}
 
-	async #workerPoolAsync( array, start_index, maxjobs, cb )
+	async #workerPoolAsync( array, start_index, maxjobs, cb, signal )
 	{
 		let cur_idx = start_index;
 
 		async function worker()
 		{
-			while( true ){
+			while( ! signal?.aborted ){
 				const i = cur_idx++;
 				if( i >= array.length ) return;
+				
 				await cb( array[i] );
 			}
 		}
@@ -192,7 +202,7 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
-	async #createThumbnailsAsync()
+	async #createThumbnailsAsync( signal )
 	{
 		if( ! this.thumbWorkerReady ) return;
 
@@ -201,7 +211,9 @@ export default class ImageTile extends EventTarget
 		try{
 			let thumbdb = {};
 
-			while( true ){
+			const t_base_height = this.baseHeight * 2;
+
+			while( ! signal?.aborted ){
 				const pending = [];
 
 				for( const image of this.images ){
@@ -212,8 +224,9 @@ export default class ImageTile extends EventTarget
 				if( ! pending.length ) break;
 				
 				await this.#workerPoolAsync( pending, 0, 4, async ( image ) => {
-					const t_base_height = this.baseHeight * 2;
-					const ratio         = t_base_height / image.realHeight;
+					if( signal?.aborted ) return;
+
+					const ratio = t_base_height / image.realHeight;
 
 					let blob;
 					if( ratio < 1 ){
@@ -289,7 +302,7 @@ export default class ImageTile extends EventTarget
 						thumbdb = {};
 						await this.idh.storeDataAsync( "thumbCache", chunk );
 					}
-				} );
+				}, signal );
 
 				if( Object.keys( thumbdb ).length ){
 					await this.idh.storeDataAsync( "thumbCache", thumbdb );
@@ -298,7 +311,8 @@ export default class ImageTile extends EventTarget
 		} catch( e ){
 			console.error( e );
 		} finally{
-			this.thumbWorkerReady = true;
+			this.thumbWorkerReady   = true;
+			this.thumbWorkerPromise = null;
 		}
 	}
 
@@ -326,7 +340,7 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
-    async addImagesByDirHandleAsync( dir_handle, gid )
+    async addImagesByDirHandleAsync( dir_handle, gid, signal )
     {
 		const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 6 );
 		let thumbdb = {};
@@ -350,6 +364,8 @@ export default class ImageTile extends EventTarget
 		}
 
 		await this.#workerPoolAsync( this.images, this.numImages, maxjobs, async ( image ) => {
+			if( signal?.aboted ) return;
+
 			image.fileObj = await image.fileHandle.getFile();
 
 			const event = new CustomEvent( "it_preloadimage", {
@@ -448,12 +464,12 @@ export default class ImageTile extends EventTarget
 				image.realWidth  = 0;
 				image.realHeight = 0;
 			}
-		} );
+		}, signal );
 
 		if( Object.keys( thumbdb ).length ) await this.idh.storeDataAsync( "thumbCache", thumbdb );
 		
 		this.#tiling_finish();
-		this.#createThumbnailsAsync();
+		this.thumbWorkerPromise = this.#createThumbnailsAsync( signal );
 
 		this.numImages += cnt;
     	return cnt;
@@ -471,6 +487,11 @@ export default class ImageTile extends EventTarget
 		for( const key of trash ){
 			delete this.thumbCache[key];
 		}
+	}
+
+	waitCancelAsync()
+	{
+		return this.thumbWorkerReady ? this.thumbWorkerPromise : null;
 	}
 
     clear()

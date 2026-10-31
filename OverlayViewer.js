@@ -101,6 +101,7 @@ export default class OverlayViewer {
 		} );
 
 		this.domTree.scrl.addEventListener( "pointerdown", ( e ) => {
+			window.getSelection()?.removeAllRanges();
 			this.grabStartCoord[0] = e.clientX;
 			this.grabStartCoord[1] = e.clientY;
 			this.grabScrollBase[0] = e.currentTarget.scrollLeft;

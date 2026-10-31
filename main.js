@@ -10,7 +10,14 @@ const mImageTile     = new ImageTile( mIndexedDbHash, "gallery" );
 const mOverlayViewer = new OverlayViewer( null );
 const mNotification  = new ToastNotification();
 
-const mReCalc = {
+const mAddImageState = {
+	abortCtrl  : null,
+	lastPromise: null,
+	queue      : [],
+	busy       : false
+}
+
+const mReCalcState = {
 	abortCtrl  : null,
 	lastPromise: null,
 	pending    : false
@@ -26,8 +33,45 @@ function update_status()
 	document.getElementById( "empty" ).hidden = ( cnt !== 0 );
 }
 
+async function add_image_wrapper_async( dir_handle, key )
+{
+	mAddImageState.queue.push( [ dir_handle, key ] );
+
+	if( mAddImageState.abortCtrl ) return;
+	mAddImageState.abortCtrl = new AbortController();
+
+	try{
+		while( true ){
+			if( ! mAddImageState.queue.length ) break;
+
+			const dir = mAddImageState.queue.shift();
+
+			mAddImageState.lastPromise = mImageTile.addImagesByDirHandleAsync( dir[0], dir[1], mAddImageState.abortCtrl.signal );
+			await Promise.all( [ mAddImageState.lastPromise, mImageTile.waitCancelAsync() ] );
+		}
+		if( mAddImageState.abortCtrl.signal.aborted ){
+			throw( new DOMException( "UserCancel", "AbortError" ) );
+		}
+	} finally{
+		mAddImageState.abortCtrl    = null;
+		mAddImageState.lastPromise  = null;
+		mAddImageState.queue.length = 0;
+	}
+
+	return;
+}
+
 document.getElementById( "app-name" ).addEventListener( "click", () => {
 	document.getElementById( "policy-modal" ).showModal();
+} );
+
+document.getElementById( "policy-ok" ).addEventListener( "click", () => {
+	document.getElementById( "policy-modal" ).close();
+	try{
+		localStorage.setItem( "policy-ok", "1" );
+	} catch( e ){
+		console.error( e );
+	}
 } );
 
 document.getElementById( "add" ).addEventListener( "click", async () =>
@@ -52,7 +96,7 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 				console.error( e );
 			}
 
-			await mImageTile.addImagesByDirHandleAsync( dir, id );
+			await add_image_wrapper_async( dir, id );
 
 			update_status();
 		}
@@ -63,20 +107,26 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 	}
 });
 
-document.getElementById( "policy-ok" ).addEventListener( "click", () => {
-	document.getElementById( "policy-modal" ).close();
-	try{
-		localStorage.setItem( "policy-ok", "1" );
-	} catch( e ){
-		console.error( e );
-	}
-} );
-
 document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) => {
-	const button = e.currentTarget;
-	button.disabled = true;
+	const clear_button = e.currentTarget;
+	const add_button   = document.getElementById( "add" );
+
+	clear_button.disabled = true;
+	add_button.disalbed   = true;
 
 	try {
+		if( mAddImageState.abortCtrl ){
+			mAddImageState.abortCtrl.abort();
+
+			try{
+				await mAddImageState.lastPromise;
+			} catch( e ){
+				if( e.name !== "AbortError" ){
+					console.error( e );
+				}
+			}
+		}
+
 		mImageTile.clear();
 		update_status();
 		
@@ -87,7 +137,10 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 	} catch( e ){
 		console.error( e );
 	} finally{
-		button.disabled = false;
+		clear_button.disabled = false;
+		add_button.disabled   = false;
+		
+		mNotification.show( "ギャラリーが初期化されました。" );
 	}
 
 	document.getElementById( "delete-modal" ).close();
@@ -98,22 +151,14 @@ document.getElementById( "rebuild-ok" ).addEventListener( "click", async () => {
 
 	const desc = document.getElementById( "rebuild-desc" );
 	try{
-		const accpeted_dirs = {};
 		for( const key of Object.keys( mDeniedDirHandle ) ){
 			const perm = await mDeniedDirHandle[key].dirHandle.requestPermission( { mode: "read" } );
 			if( perm !== "granted" ){
 				console.log( `nImgViewer: Permission denied to read for the directory: ${mDeniedDirHandle[key].dirHandle.name }` );
 			} else{
-				accpeted_dirs[key] = mDeniedDirHandle[key];
+				await add_image_wrapper_async( mDirs[key].dirHandle, key );
 			}
 			delete mDeniedDirHandle[key];
-		}
-
-		for( const key of Object.keys( accpeted_dirs ) ){
-			await mImageTile.addImagesByDirHandleAsync( accpeted_dirs[key].dirHandle, key );
-			delete accpeted_dirs[key];
-
-			update_status();
 		}
 	} finally{
 		const cnt_denied = Object.keys( mDeniedDirHandle ).length;
@@ -171,8 +216,7 @@ document.addEventListener( "DOMContentLoaded", async () => {
 	for( const key of Object.keys( mDirs ) ){
 		const perm = await mDirs[key].dirHandle.queryPermission( { mode: "read" } );
 		if( perm === "granted" ){
-			await mImageTile.addImagesByDirHandleAsync( mDirs[key].dirHandle, key );
-			update_status();
+			await add_image_wrapper_async( mDirs[key].dirHandle, key );
 		} else{
 			mDeniedDirHandle[key] = mDirs[key];
 		}
@@ -193,33 +237,33 @@ document.addEventListener( "DOMContentLoaded", async () => {
 				if(
 					e.target !== mImageTile.getRootElement() ||
 					e.contentRect.width === prev_width       ||
-					mReCalc.pending
+					mReCalcState.pending
 				) break;
 
 				prev_width = e.contentRect.width;
 				
-				if( ! mReCalc.lastPromise ){
-					mReCalc.abortCtrl   = new AbortController();
-					mReCalc.lastPromise = mImageTile.reCalcTilingAsync( mReCalc.abortCtrl.signal );
-				} else if( ! mReCalc.pending ){
-					mReCalc.pending = true;
-					mReCalc.abortCtrl.abort();
+				if( ! mReCalcState.lastPromise ){
+					mReCalcState.abortCtrl   = new AbortController();
+					mReCalcState.lastPromise = mImageTile.reCalcTilingAsync( mReCalcState.abortCtrl.signal );
+				} else if( ! mReCalcState.pending ){
+					mReCalcState.pending = true;
+					mReCalcState.abortCtrl.abort();
 					
-					await mReCalc.lastPromise;
+					await mReCalcState.lastPromise;
 
-					mReCalc.abortCtrl   = new AbortController();
-					mReCalc.lastPromise = mImageTile.reCalcTilingAsync( mReCalc.abortCtrl.signal );
-					mReCalc.pending     = false;
+					mReCalcState.abortCtrl   = new AbortController();
+					mReCalcState.lastPromise = mImageTile.reCalcTilingAsync( mReCalcState.abortCtrl.signal );
+					mReCalcState.pending     = false;
 				}
 
-				const current_promise = mReCalc.lastPromise;
+				const current_promise = mReCalcState.lastPromise;
 
-				mReCalc.lastPromise.finally( () => {
-					if( mReCalc.lastPromise !== current_promise ) return;
+				mReCalcState.lastPromise.finally( () => {
+					if( mReCalcState.lastPromise !== current_promise ) return;
 
-					mReCalc.abortCtrl   = null;
-					mReCalc.lastPromise = null;
-					mReCalc.pending     = false;
+					mReCalcState.abortCtrl   = null;
+					mReCalcState.lastPromise = null;
+					mReCalcState.pending     = false;
 				}) ;
 				break;
 			}
