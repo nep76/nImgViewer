@@ -33,9 +33,9 @@ function update_status()
 	document.getElementById( "empty" ).hidden = ( cnt !== 0 );
 }
 
-async function add_image_wrapper_async( dir_handle, key )
+async function add_image_wrapper_async( dir_handle, id )
 {
-	mAddImageState.queue.push( [ dir_handle, key ] );
+	mAddImageState.queue.push( [ dir_handle, id ] );
 
 	if( mAddImageState.abortCtrl ) return;
 	mAddImageState.abortCtrl = new AbortController();
@@ -79,13 +79,6 @@ document.getElementById( "add" ).addEventListener( "click", async () =>
 	try{
 		const dir = await window.showDirectoryPicker();
 		if( dir ){
-			for( const key of Object.keys( mDirs ) ){
-			  	if( await mDirs[key].dirHandle.isSameEntry( dir ) ){
-					mNotification.show( `フォルダ "${mDirs[key].dirHandle.name}" は既にギャラリーに含まれています。` );
-					return;
-				}
-			}
-		  
 			const id  = crypto.randomUUID();
 
 			try{
@@ -208,9 +201,14 @@ document.addEventListener( "DOMContentLoaded", async () => {
 		mOverlayViewer.setUrl( img.imageTileObj.url );
 		mOverlayViewer.show();
 	} );
+
+	mImageTile.addEventListener( "it_knowndir", async ( e ) => {
+		mNotification.show( `フォルダ "${e.detail.dir.name}" は既にギャラリーに追加されています。` );
+		await mIndexedDbHash.removeDataAsync( "dirs", [ e.detail.id ] );
+	} );
 	
-	mImageTile.addEventListener( "it_preloadimage", async ( e ) => {
-		mNotification.show( `${e.detail.dir.name}, ${e.detail.file.name}` );
+	mImageTile.addEventListener( "it_preloadimage", ( e ) => {
+		mNotification.show( `${e.detail.dir.name} (${e.detail.count}/${e.detail.maxEntries}) ${e.detail.file.name}` );
 	} );
 
 	for( const key of Object.keys( mDirs ) ){

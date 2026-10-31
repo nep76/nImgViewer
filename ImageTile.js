@@ -4,6 +4,7 @@ export default class ImageTile extends EventTarget
 	static requiredDbKeys = [ "thumbCache" ];
 
 	static #sleep = ( ms ) => new Promise( resolve => setTimeout( resolve, ms ) );
+	static #regex = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i;
 
     constructor( idh, id )
     {
@@ -34,6 +35,7 @@ export default class ImageTile extends EventTarget
 
     #init()
     {
+		this.knownDirList   = [];
         this.lineStart      = 0;
         this.lineEnd        = 0;
 		this.images         = [];
@@ -152,7 +154,19 @@ export default class ImageTile extends EventTarget
 	}
 
 	async #findImageFilesAsync( array, dir_handle, gid ){
-		const regex = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i;
+		for( const known_dir of this.knownDirList ){
+			if( await known_dir.isSameEntry( dir_handle ) ){
+				this.rootElement.dispatchEvent( new CustomEvent( "it_knowndir", {
+					detail: {
+						dir: dir_handle,
+						id: gid
+					}
+				} ) );
+				return;
+			}
+		}
+
+		this.knownDirList.push( dir_handle );
 
 		for await ( const [name, handle] of dir_handle.entries() ){
     		if( handle.kind === "directory" ){
@@ -162,7 +176,7 @@ export default class ImageTile extends EventTarget
     		  	continue;
     		}
 
-    		if( regex.test( name ) ){
+    		if( ImageTile.#regex.test( name ) ){
 				array.push( {
 					dirHandle : dir_handle,
 					fileHandle: handle,
@@ -344,7 +358,7 @@ export default class ImageTile extends EventTarget
     {
 		const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 6 );
 		let thumbdb = {};
-    	let cnt = 0;
+    	let max_entries, cnt = 0;
 
 		this.#updateGalleryWidth();
 
@@ -360,22 +374,14 @@ export default class ImageTile extends EventTarget
 				} );
 			} );
 
+			max_entries = new_images.length;
 			this.images.push( ...new_images );
 		}
 
 		await this.#workerPoolAsync( this.images, this.numImages, maxjobs, async ( image ) => {
 			if( signal?.aboted ) return;
 
-			image.fileObj = await image.fileHandle.getFile();
-
-			const event = new CustomEvent( "it_preloadimage", {
-				detail: {
-					image: image,
-					dir: dir_handle,
-					file: image.fileObj
-				}
-			} );
-
+			image.fileObj  = await image.fileHandle.getFile();
 			image.url      = URL.createObjectURL( image.fileObj );
 			image.thumbKey = JSON.stringify({
 				dirName : dir_handle.name,
@@ -405,18 +411,19 @@ export default class ImageTile extends EventTarget
 			//逆参照用
 			image.element.imageTileObj = image;
 
-			this.rootElement.dispatchEvent( event );
+			this.rootElement.dispatchEvent( new CustomEvent( "it_preloadimage", {
+				detail: {
+					image: image,
+					dir: dir_handle,
+					file: image.fileObj,
+					maxEntries: max_entries,
+					count: cnt
+				}
+			} ) );
 			
 			try{
 				return await new Promise( ( resolve, reject ) => {
 					image.element.addEventListener( "load", async () => {
-						const event = new CustomEvent( "it_loadimage", {
-							detail: {
-								image: image,
-								dir: dir_handle,
-								file: image.fileObj
-							}
-						} );
 						image.realWidth  = image.element.naturalWidth;
 						image.realHeight = image.element.naturalHeight;
 
@@ -438,7 +445,15 @@ export default class ImageTile extends EventTarget
 
 						image.ready = true;
 
-						this.rootElement.dispatchEvent( event );
+						this.rootElement.dispatchEvent( new CustomEvent( "it_loadimage", {
+							detail: {
+								image: image,
+								dir: dir_handle,
+								file: image.fileObj,
+								maxEntries: max_entries,
+								count: cnt
+							}
+						} ) );
 						this.#displayImagesAsync();
 
 						if( Object.keys( thumbdb ).length >= 10 ){
