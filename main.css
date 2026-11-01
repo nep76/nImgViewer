@@ -151,10 +151,34 @@ dialog {
 	overscroll-behavior: contain;
 	min-width: 30%;
 	text-align: center;
+
+	opacity: 0;
+	transform: translateY(5px);
+	transition: opacity 0.13s ease, transform 0.13s ease;
 }
 
 dialog::backdrop {
   	background-color: rgba( 0, 0, 0, 0.6 );
+	opacity:0;
+	transition: opacity 0.13s ease;
+}
+
+dialog:open {
+	opacity: 1;
+	transform: none;
+
+	@starting-style {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+}
+
+dialog:open::backdrop {
+	opacity: 1;
+
+	@starting-style {
+		opacity: 0;
+	}
 }
 
 dialog.alert {

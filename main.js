@@ -47,7 +47,7 @@ async function add_image_wrapper_async( dir_handle, id )
 			const dir = mAddImageState.queue.shift();
 
 			mAddImageState.lastPromise = mImageTile.addImagesByDirHandleAsync( dir[0], dir[1], mAddImageState.abortCtrl.signal );
-			await Promise.all( [ mAddImageState.lastPromise, mImageTile.waitCancelAsync() ] );
+			await Promise.all( [ mAddImageState.lastPromise, mImageTile.waitForCancelAsync() ] );
 		}
 		if( mAddImageState.abortCtrl.signal.aborted ){
 			throw( new DOMException( "UserCancel", "AbortError" ) );

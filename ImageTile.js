@@ -13,12 +13,8 @@ export default class ImageTile extends EventTarget
 		this.idh = idh;
 		this.galleryWidth = 0;
 
-		this.displayReady = true;
-		this.displayIndex = 0;
-
 		this.thumbWorkerReady = true;
 		this.thumbWorkerPromise = null;
-		this.thumbCache = {};
 
 		this.baseHeight = 220;
 		
@@ -36,16 +32,23 @@ export default class ImageTile extends EventTarget
     #init()
     {
 		this.knownDirList   = [];
-        this.lineStart      = 0;
-        this.lineEnd        = 0;
+
 		this.images         = [];
-        this.imgsRatio      = [];
-        this.totalLineWidth = 0;
 		this.numImages      = 0;
 		this.thumbCache     = {};
-		this.displayIndex   = 0;
-		this.linesOffset    = [];
+
+		this.displayReady = true;
+		this.displayIndex = 0;
+
+		this.#initTilingContext( this );
     }
+
+	#initTilingContext( dic ){
+        dic.lineStart      = 0;
+        dic.lineEnd        = 0;
+        dic.totalLineWidth = 0;
+        dic.imgsRatio      = [];
+	}
 
 	#updateGalleryWidth(){
 		const gallery_style = getComputedStyle( this.rootElement );
@@ -76,37 +79,37 @@ export default class ImageTile extends EventTarget
 		return this.id;
 	}
 
-	#tiling( image )
+	#tiling( image, ctx = this )
 	{
 		let cur_width = 0, cur_ratio = 0;
 
     	cur_ratio = this.baseHeight / image.realHeight;
     	cur_width = image.realWidth * cur_ratio;
 
-    	if( this.galleryWidth < ( this.totalLineWidth + cur_width ) ){
-    		const image_cnt  = this.lineEnd - this.lineStart;
-    		const zoom_ratio = this.galleryWidth / this.totalLineWidth;
+    	if( this.galleryWidth < ( ctx.totalLineWidth + cur_width ) ){
+    		const image_cnt  = ctx.lineEnd - ctx.lineStart;
+    		const zoom_ratio = this.galleryWidth / ctx.totalLineWidth;
 
     		for( let i = 0; i < image_cnt; i++ ){
-    			this.images[this.lineStart + i].element.width  = ( this.images[this.lineStart + i].realWidth * this.imgsRatio[i] * zoom_ratio ) - 2;
-    			this.images[this.lineStart + i].element.height = ( this.images[this.lineStart + i].realHeight * this.imgsRatio[i] * zoom_ratio ) - 2;
+    			this.images[ctx.lineStart + i].element.width  = ( this.images[ctx.lineStart + i].realWidth * ctx.imgsRatio[i] * zoom_ratio ) - 2;
+    			this.images[ctx.lineStart + i].element.height = ( this.images[ctx.lineStart + i].realHeight * ctx.imgsRatio[i] * zoom_ratio ) - 2;
     		}
         
-    		this.imgsRatio.length = 0;
-    		this.totalLineWidth = 0;
-    		this.lineStart = this.lineEnd;
-			this.linesOffset.push( this.lineStart );
+    		ctx.imgsRatio.length = 0;
+    		ctx.totalLineWidth = 0;
+    		ctx.lineStart = ctx.lineEnd;
+			//this.linesOffset.push( ctx.lineStart );
     	}
 
-    	this.totalLineWidth += cur_width;
-    	this.imgsRatio.push( cur_ratio );
+    	ctx.totalLineWidth += cur_width;
+    	ctx.imgsRatio.push( cur_ratio );
 
-    	this.lineEnd++;
+    	ctx.lineEnd++;
 	}
 
-	#tiling_finish()
+	#tiling_finish( ctx = this )
 	{
-		for( let i = this.lineStart; i < this.lineEnd; i++ ){
+		for( let i = ctx.lineStart; i < ctx.lineEnd; i++ ){
     		this.images[i].element.width  = this.images[i].realWidth * ( this.baseHeight / this.images[i].realHeight );
     		this.images[i].element.height = this.baseHeight;
 		}
@@ -116,22 +119,20 @@ export default class ImageTile extends EventTarget
 	{
 		if( ! this.numImages ) return;
 
-		this.lineStart        = 0;
-		this.lineEnd          = 0;
-		this.totalLineWidth   = 0;
-		this.imgsRatio.length = 0;
+		const ctx = {};
 
+		this.#initTilingContext( ctx );
 		this.#updateGalleryWidth();
 
-		for( let i = 0; i < this.images.length; i++ ){
+		for( let i = 0; i < this.numImages; i++ ){
 			if( signal?.aborted ) return;
 
-			this.#tiling( this.images[i] );
+			this.#tiling( this.images[i], ctx );
 
 			if( i % 100 === 99 ) await ImageTile.#sleep( 0 );
 		}
 
-		this.#tiling_finish();
+		this.#tiling_finish( ctx );
 	}
 
 	async #workerPoolAsync( array, start_index, maxjobs, cb, signal )
@@ -220,114 +221,115 @@ export default class ImageTile extends EventTarget
 	{
 		if( ! this.thumbWorkerReady ) return;
 
-		this.thumbWorkerReady = false;
+		this.thumbWorkerReady   = false;
+		this.thumbWorkerPromise = ( async() => {
+			try{
+				let thumbdb = {};
 
-		try{
-			let thumbdb = {};
+				const t_base_height = this.baseHeight * 2;
 
-			const t_base_height = this.baseHeight * 2;
+				while( ! signal?.aborted ){
+					const pending = [];
 
-			while( ! signal?.aborted ){
-				const pending = [];
-
-				for( const image of this.images ){
-					if( image.thumbUrl !== image.url && ( ! this.thumbCache[image.thumbKey].data.done ) ){
-						pending.push( image );
-					}
-				}
-				if( ! pending.length ) break;
-				
-				await this.#workerPoolAsync( pending, 0, 4, async ( image ) => {
-					if( signal?.aborted ) return;
-
-					const ratio = t_base_height / image.realHeight;
-
-					let blob;
-					if( ratio < 1 ){
-						const bitmap = await createImageBitmap( image.fileObj );
-						try {					
-							const target_width  = Math.round( image.realWidth * ratio );
-							const target_height = Math.round( image.realHeight * ratio );
-							let canvas_width    = image.realWidth;
-							let canvas_height   = image.realHeight;
-							let canvas_index    = 0;
-							let source          = bitmap;
-
-							const canvas_arr = [
-								{ canvas: document.createElement( "canvas" ), ctx: null	},
-								{ canvas: document.createElement( "canvas" ), ctx: null	}
-							];
-
-							for( let i = 0; i < 2; i++ ){
-								canvas_arr[i].ctx = canvas_arr[i].canvas.getContext( "2d" );
-								canvas_arr[i].ctx.imageSmoothingEnabled = true;
-								canvas_arr[i].ctx.imageSmoothingQuality = "high";
-							}
-
-							while( ( canvas_height *= 0.5 ) > target_height ){
-								canvas_width *= 0.5
-								canvas_arr[canvas_index].canvas.width  = canvas_width;
-								canvas_arr[canvas_index].canvas.height = canvas_height;
-								canvas_arr[canvas_index].ctx.drawImage(
-									source, 0, 0, canvas_width, canvas_height
-								);
-								source = canvas_arr[canvas_index].canvas;
-								canvas_index = 1 - canvas_index;
-							}
-
-							canvas_arr[canvas_index].canvas.width  = target_width;
-							canvas_arr[canvas_index].canvas.height = target_height;
-							canvas_arr[canvas_index].ctx.drawImage(
-								source, 0, 0, target_width, target_height
-							);
-
-							blob = await new Promise( ( resolve, reject ) => {
-								canvas_arr[canvas_index].canvas.toBlob( ( b ) => {
-									if( b ){
-										resolve( b );
-									} else{
-										console.error("canvas.toBlob failed", {
-											canvas_width: canvas_width,
-											canvas_height: canvas_height,
-											target_width: target_width,
-											target_height: target_height,
-											url: image.url
-										});
-										reject( new Error( `Failed to create thumbname for ${image.url}` ) );
-									}
-								}, "image/png", 0.8 );
-							} );
-
-							image.element.src = URL.createObjectURL( blob );
-
-							URL.revokeObjectURL( this.thumbUrl );
-							image.thumbUrl = image.element.src;
-						} finally{
-							bitmap.close();
+					for( let i = 0; i < this.numImages; i++ ){
+						if( this.images[i].thumbUrl !== this.images[i].url && ( ! this.thumbCache[this.images[i].thumbKey].data.done ) ){
+							pending.push( this.images[i] );
 						}
 					}
+					if( ! pending.length ) break;
+					
+					await this.#workerPoolAsync( pending, 0, 4, async ( image ) => {
+						if( signal?.aborted ) return;
 
-					this.thumbCache[image.thumbKey].data.done = true;
-					this.thumbCache[image.thumbKey].data.blob = blob;
-					thumbdb[image.thumbKey] = this.thumbCache[image.thumbKey].data;
+						const ratio = t_base_height / image.realHeight;
 
-					if( Object.keys( thumbdb ).length >= 10 ){
-						const chunk = thumbdb;
-						thumbdb = {};
-						await this.idh.storeDataAsync( "thumbCache", chunk );
+						let blob;
+						if( ratio < 1 ){
+							const bitmap = await createImageBitmap( image.fileObj );
+							try {					
+								const target_width  = Math.round( image.realWidth * ratio );
+								const target_height = Math.round( image.realHeight * ratio );
+								let canvas_width    = image.realWidth;
+								let canvas_height   = image.realHeight;
+								let canvas_index    = 0;
+								let source          = bitmap;
+
+								const canvas_arr = [
+									{ canvas: document.createElement( "canvas" ), ctx: null	},
+									{ canvas: document.createElement( "canvas" ), ctx: null	}
+								];
+
+								for( let i = 0; i < 2; i++ ){
+									canvas_arr[i].ctx = canvas_arr[i].canvas.getContext( "2d" );
+									canvas_arr[i].ctx.imageSmoothingEnabled = true;
+									canvas_arr[i].ctx.imageSmoothingQuality = "high";
+								}
+
+								while( ( canvas_height *= 0.5 ) > target_height ){
+									canvas_width *= 0.5
+									canvas_arr[canvas_index].canvas.width  = canvas_width;
+									canvas_arr[canvas_index].canvas.height = canvas_height;
+									canvas_arr[canvas_index].ctx.drawImage(
+										source, 0, 0, canvas_width, canvas_height
+									);
+									source = canvas_arr[canvas_index].canvas;
+									canvas_index = 1 - canvas_index;
+								}
+
+								canvas_arr[canvas_index].canvas.width  = target_width;
+								canvas_arr[canvas_index].canvas.height = target_height;
+								canvas_arr[canvas_index].ctx.drawImage(
+									source, 0, 0, target_width, target_height
+								);
+
+								blob = await new Promise( ( resolve, reject ) => {
+									canvas_arr[canvas_index].canvas.toBlob( ( b ) => {
+										if( b ){
+											resolve( b );
+										} else{
+											console.error("canvas.toBlob failed", {
+												canvas_width: canvas_width,
+												canvas_height: canvas_height,
+												target_width: target_width,
+												target_height: target_height,
+												url: image.url
+											});
+											reject( new Error( `Failed to create thumbname for ${image.url}` ) );
+										}
+									}, "image/png", 0.8 );
+								} );
+
+								image.element.src = URL.createObjectURL( blob );
+
+								URL.revokeObjectURL( this.thumbUrl );
+								image.thumbUrl = image.element.src;
+							} finally{
+								bitmap.close();
+							}
+						}
+
+						this.thumbCache[image.thumbKey].data.done = true;
+						this.thumbCache[image.thumbKey].data.blob = blob;
+						thumbdb[image.thumbKey] = this.thumbCache[image.thumbKey].data;
+
+						if( Object.keys( thumbdb ).length >= 10 ){
+							const chunk = thumbdb;
+							thumbdb = {};
+							await this.idh.storeDataAsync( "thumbCache", chunk );
+						}
+					}, signal );
+
+					if( Object.keys( thumbdb ).length ){
+						await this.idh.storeDataAsync( "thumbCache", thumbdb );
 					}
-				}, signal );
-
-				if( Object.keys( thumbdb ).length ){
-					await this.idh.storeDataAsync( "thumbCache", thumbdb );
 				}
+			} catch( e ){
+				console.error( e );
+			} finally{
+				this.thumbWorkerReady   = true;
+				this.thumbWorkerPromise = null;
 			}
-		} catch( e ){
-			console.error( e );
-		} finally{
-			this.thumbWorkerReady   = true;
-			this.thumbWorkerPromise = null;
-		}
+		} );
 	}
 
 	async #displayImagesAsync()
@@ -444,6 +446,7 @@ export default class ImageTile extends EventTarget
 						}
 
 						image.ready = true;
+						this.numImages++;
 
 						this.rootElement.dispatchEvent( new CustomEvent( "it_loadimage", {
 							detail: {
@@ -484,9 +487,8 @@ export default class ImageTile extends EventTarget
 		if( Object.keys( thumbdb ).length ) await this.idh.storeDataAsync( "thumbCache", thumbdb );
 		
 		this.#tiling_finish();
-		this.thumbWorkerPromise = this.#createThumbnailsAsync( signal );
+		this.#createThumbnailsAsync( signal );
 
-		this.numImages += cnt;
     	return cnt;
     }
 
@@ -504,7 +506,7 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
-	waitCancelAsync()
+	waitForCancelAsync()
 	{
 		return this.thumbWorkerReady ? this.thumbWorkerPromise : null;
 	}
@@ -517,7 +519,7 @@ export default class ImageTile extends EventTarget
 			if( image.thumbUrl && ( image.thumbUrl !== image.url ) ){
 				 URL.revokeObjectURL( image.thumbUrl );
 			}
-	  		URL.revokeObjectURL( image.url );
+	  		if( image.url ) URL.revokeObjectURL( image.url );
 		}
 
         this.#init();
