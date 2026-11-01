@@ -12,7 +12,6 @@ const mNotification  = new ToastNotification();
 
 const mAddImageState = {
 	abortCtrl  : null,
-	lastPromise: null,
 	queue      : [],
 	busy       : false
 }
@@ -46,15 +45,14 @@ async function add_image_wrapper_async( dir_handle, id )
 
 			const dir = mAddImageState.queue.shift();
 
-			mAddImageState.lastPromise = mImageTile.addImagesByDirHandleAsync( dir[0], dir[1], mAddImageState.abortCtrl.signal );
-			await Promise.all( [ mAddImageState.lastPromise, mImageTile.waitForCancelAsync() ] );
+			mImageTile.addImagesByDirHandleAsync( dir[0], dir[1], mAddImageState.abortCtrl.signal );
+			await mImageTile.sync();
 		}
 		if( mAddImageState.abortCtrl.signal.aborted ){
 			throw( new DOMException( "UserCancel", "AbortError" ) );
 		}
 	} finally{
 		mAddImageState.abortCtrl    = null;
-		mAddImageState.lastPromise  = null;
 		mAddImageState.queue.length = 0;
 	}
 
@@ -105,14 +103,15 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 	const add_button   = document.getElementById( "add" );
 
 	clear_button.disabled = true;
-	add_button.disalbed   = true;
+	add_button.disabled   = true;
 
 	try {
 		if( mAddImageState.abortCtrl ){
 			mAddImageState.abortCtrl.abort();
 
 			try{
-				await mAddImageState.lastPromise;
+				await mImageTile.sync();
+				mAddImageState.queue.length = 0;
 			} catch( e ){
 				if( e.name !== "AbortError" ){
 					console.error( e );

@@ -13,6 +13,9 @@ export default class ImageTile extends EventTarget
 		this.idh = idh;
 		this.galleryWidth = 0;
 
+		this.addWorkerReady = true;
+		this.addWorkerPromise = null;
+
 		this.thumbWorkerReady = true;
 		this.thumbWorkerPromise = null;
 
@@ -217,12 +220,14 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
-	async #createThumbnailsAsync( signal )
+	#createThumbnails( signal )
 	{
 		if( ! this.thumbWorkerReady ) return;
 
 		this.thumbWorkerReady   = false;
-		this.thumbWorkerPromise = ( async() => {
+		this.thumbWorkerPromise = ( async () => {
+			await this.addWorkerPromise;
+
 			try{
 				let thumbdb = {};
 
@@ -241,16 +246,16 @@ export default class ImageTile extends EventTarget
 					await this.#workerPoolAsync( pending, 0, 4, async ( image ) => {
 						if( signal?.aborted ) return;
 
-						const ratio = t_base_height / image.realHeight;
+						const bitmap = await createImageBitmap( image.fileObj );
+						try{
+							const ratio  = t_base_height / bitmap.height;
+							let blob;
 
-						let blob;
-						if( ratio < 1 ){
-							const bitmap = await createImageBitmap( image.fileObj );
-							try {					
-								const target_width  = Math.round( image.realWidth * ratio );
-								const target_height = Math.round( image.realHeight * ratio );
-								let canvas_width    = image.realWidth;
-								let canvas_height   = image.realHeight;
+							if( ratio < 1 ){	
+								const target_width  = Math.round( bitmap.width * ratio );
+								const target_height = Math.round( bitmap.height * ratio );
+								let canvas_width    = bitmap.width;
+								let canvas_height   = bitmap.height;
 								let canvas_index    = 0;
 								let source          = bitmap;
 
@@ -303,19 +308,19 @@ export default class ImageTile extends EventTarget
 
 								URL.revokeObjectURL( this.thumbUrl );
 								image.thumbUrl = image.element.src;
-							} finally{
-								bitmap.close();
 							}
-						}
 
-						this.thumbCache[image.thumbKey].data.done = true;
-						this.thumbCache[image.thumbKey].data.blob = blob;
-						thumbdb[image.thumbKey] = this.thumbCache[image.thumbKey].data;
+							this.thumbCache[image.thumbKey].data.done = true;
+							this.thumbCache[image.thumbKey].data.blob = blob;
+							thumbdb[image.thumbKey] = this.thumbCache[image.thumbKey].data;
 
-						if( Object.keys( thumbdb ).length >= 10 ){
-							const chunk = thumbdb;
-							thumbdb = {};
-							await this.idh.storeDataAsync( "thumbCache", chunk );
+							if( Object.keys( thumbdb ).length >= 10 ){
+								const chunk = thumbdb;
+								thumbdb = {};
+								await this.idh.storeDataAsync( "thumbCache", chunk );
+							}
+						} finally{
+							bitmap.close();
 						}
 					}, signal );
 
@@ -325,10 +330,10 @@ export default class ImageTile extends EventTarget
 				}
 			} catch( e ){
 				console.error( e );
-			} finally{
-				this.thumbWorkerReady   = true;
-				this.thumbWorkerPromise = null;
 			}
+		} )().finally( () => {
+			this.thumbWorkerPromise = null;
+			this.thumbWorkerReady   = true;
 		} );
 	}
 
@@ -358,138 +363,145 @@ export default class ImageTile extends EventTarget
 
     async addImagesByDirHandleAsync( dir_handle, gid, signal )
     {
-		const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 6 );
-		let thumbdb = {};
-    	let max_entries, cnt = 0;
+		if( ! this.addWorkerReady ) return;
 
-		this.#updateGalleryWidth();
+		this.addWorkerReady   = false;
+		this.addWorkerPromise = ( async () => {
+			const maxjobs = Math.min( navigator.hardwareConcurrency || 4, 6 );
+			let thumbdb = {};
+			let max_entries, cnt = 0;
 
-		{
-			const new_images = [];
+			this.#updateGalleryWidth();
 
-			await this.#findImageFilesAsync( new_images, dir_handle, gid );
+			{
+				const new_images = [];
 
-			new_images.sort( ( a, b ) => {
-				return a.fileHandle.name.localeCompare( b.fileHandle.name, undefined, {
-					numeric: true,
-					sensitivity: "base"
+				await this.#findImageFilesAsync( new_images, dir_handle, gid );
+
+				new_images.sort( ( a, b ) => {
+					return a.fileHandle.name.localeCompare( b.fileHandle.name, undefined, {
+						numeric: true,
+						sensitivity: "base"
+					} );
 				} );
-			} );
 
-			max_entries = new_images.length;
-			this.images.push( ...new_images );
-		}
-
-		await this.#workerPoolAsync( this.images, this.numImages, maxjobs, async ( image ) => {
-			if( signal?.aboted ) return;
-
-			image.fileObj  = await image.fileHandle.getFile();
-			image.url      = URL.createObjectURL( image.fileObj );
-			image.thumbKey = JSON.stringify({
-				dirName : dir_handle.name,
-				fileName: image.fileObj.name,
-				size    : image.fileObj.size,
-				lastMod : image.fileObj.lastModified
-			});
-
-			if( this.thumbCache[image.thumbKey] ){
-				this.thumbCache[image.thumbKey].use = true;
-				if( this.thumbCache[image.thumbKey].data.blob ){
-					image.thumbUrl = URL.createObjectURL( this.thumbCache[image.thumbKey].data.blob );
-				} else{
-					image.thumbUrl = image.url;
-				}
+				max_entries = new_images.length;
+				this.images.push( ...new_images );
 			}
 
-			image.element          = document.createElement( "img" );
-			image.element.alt      = "";
-			image.element.decoding = "async";
-			image.element.dataset.groupId = gid;
-			image.element.dataset.index   = this.numImages + cnt++;
-			image.element.style.contentVisibility = "auto";
+			await this.#workerPoolAsync( this.images, this.numImages, maxjobs, async ( image ) => {
+				if( signal?.aborted ) return;
 
-			image.element.height = this.baseHeight;
+				image.fileObj  = await image.fileHandle.getFile();
+				image.url      = URL.createObjectURL( image.fileObj );
+				image.thumbKey = JSON.stringify({
+					dirName : dir_handle.name,
+					fileName: image.fileObj.name,
+					size    : image.fileObj.size,
+					lastMod : image.fileObj.lastModified
+				});
 
-			//逆参照用
-			image.element.imageTileObj = image;
-
-			this.rootElement.dispatchEvent( new CustomEvent( "it_preloadimage", {
-				detail: {
-					image: image,
-					dir: dir_handle,
-					file: image.fileObj,
-					maxEntries: max_entries,
-					count: cnt
+				if( this.thumbCache[image.thumbKey] ){
+					this.thumbCache[image.thumbKey].use = true;
+					if( this.thumbCache[image.thumbKey].data.blob ){
+						image.thumbUrl = URL.createObjectURL( this.thumbCache[image.thumbKey].data.blob );
+					} else{
+						image.thumbUrl = image.url;
+					}
 				}
-			} ) );
+
+				image.element          = document.createElement( "img" );
+				image.element.alt      = "";
+				image.element.decoding = "async";
+				image.element.dataset.groupId = gid;
+				image.element.dataset.index   = this.numImages + cnt++;
+				image.element.style.contentVisibility = "auto";
+
+				image.element.height = this.baseHeight;
+
+				//逆参照用
+				image.element.imageTileObj = image;
+
+				this.rootElement.dispatchEvent( new CustomEvent( "it_preloadimage", {
+					detail: {
+						image: image,
+						dir: dir_handle,
+						file: image.fileObj,
+						maxEntries: max_entries,
+						count: cnt
+					}
+				} ) );
+				
+				try{
+					return await new Promise( ( resolve, reject ) => {
+						image.element.addEventListener( "load", async () => {
+							image.realWidth  = image.element.naturalWidth;
+							image.realHeight = image.element.naturalHeight;
+
+							if( ! image.thumbUrl ){
+								const blob = await this.#createThumbnailBlobAsync( image );
+								thumbdb[image.thumbKey] = {
+									done: false,
+									blob: blob
+								};
+								this.thumbCache[image.thumbKey] = {
+									use: true,
+									data: thumbdb[image.thumbKey]
+								};
+								if( blob ){
+									image.thumbUrl = URL.createObjectURL( blob );
+									image.element.src = image.thumbUrl;
+								}
+							}
+
+							image.ready = true;
+							this.numImages++;
+
+							this.rootElement.dispatchEvent( new CustomEvent( "it_loadimage", {
+								detail: {
+									image: image,
+									dir: dir_handle,
+									file: image.fileObj,
+									maxEntries: max_entries,
+									count: cnt
+								}
+							} ) );
+							this.#displayImagesAsync();
+
+							if( Object.keys( thumbdb ).length >= 10 ){
+								const chunk = thumbdb;
+								thumbdb = {};
+								await this.idh.storeDataAsync( "thumbCache", chunk );
+							}
+
+							resolve();
+						}, { once: true } );
+
+						image.element.addEventListener( "error", () => {
+							reject();
+						}, { once: true } );
+						
+						image.element.src = image.thumbUrl ?? image.url;
+					} );
+				} catch{
+					URL.revokeObjectURL( image.url );
+					if( image.thumbUrl ) URL.revokeObjectURL( image.thumbUrl );
+					image.url        = null;
+					image.element    = null;
+					image.realWidth  = 0;
+					image.realHeight = 0;
+				}
+			}, signal );
+
+			if( Object.keys( thumbdb ).length ) await this.idh.storeDataAsync( "thumbCache", thumbdb );
 			
-			try{
-				return await new Promise( ( resolve, reject ) => {
-					image.element.addEventListener( "load", async () => {
-						image.realWidth  = image.element.naturalWidth;
-						image.realHeight = image.element.naturalHeight;
+			this.#tiling_finish();
+		} )().finally( () => {
+			this.addWorkerPromise = null;
+			this.addWorkerReady   = true;
+		} );
 
-						if( ! image.thumbUrl ){
-							const blob = await this.#createThumbnailBlobAsync( image );
-							thumbdb[image.thumbKey] = {
-								done: false,
-								blob: blob
-							};
-							this.thumbCache[image.thumbKey] = {
-								use: true,
-								data: thumbdb[image.thumbKey]
-							};
-							if( blob ){
-								image.thumbUrl = URL.createObjectURL( blob );
-								image.element.src = image.thumbUrl;
-							}
-						}
-
-						image.ready = true;
-						this.numImages++;
-
-						this.rootElement.dispatchEvent( new CustomEvent( "it_loadimage", {
-							detail: {
-								image: image,
-								dir: dir_handle,
-								file: image.fileObj,
-								maxEntries: max_entries,
-								count: cnt
-							}
-						} ) );
-						this.#displayImagesAsync();
-
-						if( Object.keys( thumbdb ).length >= 10 ){
-							const chunk = thumbdb;
-							thumbdb = {};
-							await this.idh.storeDataAsync( "thumbCache", chunk );
-						}
-
-						resolve();
-					}, { once: true } );
-
-					image.element.addEventListener( "error", () => {
-						reject();
-					}, { once: true } );
-					
-					image.element.src = image.thumbUrl ?? image.url;
-				} );
-			} catch{
-				URL.revokeObjectURL( image.url );
-				if( image.thumbUrl ) URL.revokeObjectURL( image.thumbUrl );
-				image.url        = null;
-				image.element    = null;
-				image.realWidth  = 0;
-				image.realHeight = 0;
-			}
-		}, signal );
-
-		if( Object.keys( thumbdb ).length ) await this.idh.storeDataAsync( "thumbCache", thumbdb );
-		
-		this.#tiling_finish();
-		this.#createThumbnailsAsync( signal );
-
-    	return cnt;
+		this.#createThumbnails( signal );
     }
 
 	async cleanupThumbnailsAsync()
@@ -506,9 +518,9 @@ export default class ImageTile extends EventTarget
 		}
 	}
 
-	waitForCancelAsync()
+	sync()
 	{
-		return this.thumbWorkerReady ? this.thumbWorkerPromise : null;
+		return Promise.all( [ this.addWorkerPromise, this.thumbWorkerPromise ] );
 	}
 
     clear()
