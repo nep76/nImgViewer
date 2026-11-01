@@ -13,8 +13,12 @@ const mNotification  = new ToastNotification();
 const mAddImageState = {
 	abortCtrl  : null,
 	queue      : [],
-	busy       : false
-}
+	runHandlers: 0
+};
+
+const mThumbState = {
+	abortCtrl: null
+};
 
 const mReCalcState = {
 	abortCtrl  : null,
@@ -34,29 +38,44 @@ function update_status()
 
 async function add_image_wrapper_async( dir_handle, id )
 {
-	mAddImageState.queue.push( [ dir_handle, id ] );
+	if( dir_handle && ( ! mAddImageState.abortCtrl?.signal.aborted ) ){
+		mAddImageState.queue.push( [ dir_handle, id ] );
+	}
 
 	if( mAddImageState.abortCtrl ) return;
 	mAddImageState.abortCtrl = new AbortController();
 
+	mThumbState.abortCtrl?.abort();
 	try{
-		while( true ){
-			if( ! mAddImageState.queue.length ) break;
-
-			const dir = mAddImageState.queue.shift();
-
-			mImageTile.addImagesByDirHandleAsync( dir[0], dir[1], mAddImageState.abortCtrl.signal );
-			await mImageTile.sync();
-		}
-		if( mAddImageState.abortCtrl.signal.aborted ){
-			throw( new DOMException( "UserCancel", "AbortError" ) );
-		}
+		await mImageTile.waitForCreateThumbnails();
+	} catch( e ){
+		console.error( e );
 	} finally{
-		mAddImageState.abortCtrl    = null;
-		mAddImageState.queue.length = 0;
-	}
+		mThumbState.abortCtrl = new AbortController();
+	};
 
-	return;
+	let aborted;
+	while( ! ( aborted = mAddImageState.abortCtrl.signal.aborted ) ){
+		if( ! mAddImageState.queue.length ) break;
+
+		const dir = mAddImageState.queue.shift();
+
+		mImageTile.addImagesByDirHandle( dir[0], dir[1], mAddImageState.abortCtrl.signal );
+		mImageTile.createThumbnails( mThumbState.abortCtrl.signal );
+
+		await mImageTile.waitForParseImages().catch( ( e ) => {
+			if( e instanceof AggregateError ){
+				console.error( e.errors );
+			}
+		} );
+	}
+	mAddImageState.abortCtrl = null;
+
+	if( ( ! aborted ) && mAddImageState.queue.length ) add_image_wrapper_async( null );
+	
+	//if( mAddImageState.abortCtrl.signal.aborted ){
+	//	throw( new DOMException( "UserCancel", "AbortError" ) );
+	//}
 }
 
 document.getElementById( "app-name" ).addEventListener( "click", () => {
@@ -72,31 +91,50 @@ document.getElementById( "policy-ok" ).addEventListener( "click", () => {
 	}
 } );
 
-document.getElementById( "add" ).addEventListener( "click", async () =>
+document.getElementById( "add" ).addEventListener( "click", async ( e ) =>
 {
+	const add_button   = e.currentTarget;
+	const clear_button = document.getElementById( "delete-ok" );
+
+	if( ! mAddImageState.runHandlers ){
+		add_button.disabled   = true;
+		clear_button.disabled = true;
+	}
+
+	mAddImageState.runHandlers++;
+
+	let dir;
+	const id  = crypto.randomUUID();
+
 	try{
-		const dir = await window.showDirectoryPicker();
-		if( dir ){
-			const id  = crypto.randomUUID();
+		dir = await window.showDirectoryPicker();
+		
+		if( ! dir ) return;
 
-			try{
-				Object.assign( mDirs,
-					await mIndexedDbHash.storeDataAsync( "dirs", { [id]: { dirHandle: dir } } )
-				);
-			} catch( e ){
-				console.error( e );
-			}
-
-			await add_image_wrapper_async( dir, id );
-
-			update_status();
+		try{
+			Object.assign( mDirs,
+				await mIndexedDbHash.storeDataAsync( "dirs", { [id]: { dirHandle: dir } } )
+			);
+		} catch( e ){
+			console.error( e );
+			mNotification.show( `フォルダ "${dir.name}" はギャラリーに追加されましたがフォルダ自体の登録には失敗しました。このフォルダの画像は次回読み込まれません。` );
 		}
 	} catch( e ){
-	  	if( e.name !== "AbortError" ){
+		if( e.name !== "AbortError" ){
 			console.error( e );
 		}
+		return;
+	} finally{
+		if( ! --mAddImageState.runHandlers ){
+			add_button.disabled   = false;
+			clear_button.disabled = false;
+		}
 	}
-});
+
+	await add_image_wrapper_async( dir, id );
+
+	update_status();
+} );
 
 document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) => {
 	const clear_button = e.currentTarget;
@@ -106,18 +144,37 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 	add_button.disabled   = true;
 
 	try {
-		if( mAddImageState.abortCtrl ){
+		/*if( mAddImageState.abortCtrl ){
 			mAddImageState.abortCtrl.abort();
 
 			try{
-				await mImageTile.sync();
-				mAddImageState.queue.length = 0;
+				await Promise.all( [
+					mImageTile.waitForParseImages(),
+					mImageTile.waitForCreateThumbnails()
+				] );
 			} catch( e ){
 				if( e.name !== "AbortError" ){
 					console.error( e );
 				}
 			}
-		}
+			mAddImageState.abortCtrl = null;
+		}*/
+
+		mAddImageState.abortCtrl?.abort();
+		mThumbState.abortCtrl?.abort();
+
+		const results = await Promise.allSettled( [
+			mImageTile.waitForParseImages(),
+			mImageTile.waitForCreateThumbnails()
+		] );
+
+		results.forEach( ( e ) => {
+			if( e.status === "rejected" && e.reason.name !== "AbortError" ){
+				console.error( e.reason );
+			}
+		} );
+
+		mAddImageState.queue.length = 0;
 
 		mImageTile.clear();
 		update_status();
@@ -131,7 +188,7 @@ document.getElementById( "delete-ok" ).addEventListener( "click", async ( e ) =>
 	} finally{
 		clear_button.disabled = false;
 		add_button.disabled   = false;
-		
+
 		mNotification.show( "すべての設定が削除されました。" );
 	}
 
@@ -195,7 +252,9 @@ document.addEventListener( "DOMContentLoaded", async () => {
 
 	mImageTile.addEventListener( "it_knowndir", async ( e ) => {
 		mNotification.show( `フォルダ "${e.detail.dir.name}" は既にギャラリーに追加されています。` );
-		await mIndexedDbHash.removeDataAsync( "dirs", [ e.detail.id ] );
+		await mIndexedDbHash.removeDataAsync( "dirs", [ e.detail.id ] ).catch( ( e ) => {
+			console.error( e );
+		} );
 	} );
 	
 	mImageTile.addEventListener( "it_preloadimage", ( e ) => {
@@ -223,7 +282,9 @@ document.addEventListener( "DOMContentLoaded", async () => {
 			mReCalcState.pending = true;
 			mReCalcState.abortCtrl.abort();
 			
-			await mReCalcState.lastPromise;
+			await mReCalcState.lastPromise.catch( ( e ) => {
+				console.error( e );
+			} );
 
 			mReCalcState.abortCtrl   = new AbortController();
 			mReCalcState.lastPromise = mImageTile.reCalcTilingAsync( mReCalcState.abortCtrl.signal );

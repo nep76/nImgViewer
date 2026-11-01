@@ -50,7 +50,7 @@ export default class ToastNotification {
 		let promise;
 
 		if( this.timerId ){
-			if( interactive ) throw new Error( "An interactive notification is already in progress." );
+			if( async ) throw new Error( "An interactive notification is already in progress." );
 			clearTimeout( this.timerId );
 		}
 
